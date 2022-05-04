@@ -1,0 +1,25 @@
+{
+  "name": "helperbot",
+  "version": "1.0.0",
+  "description": "Distressing Helper Bot for DevDao workflows",
+  "main": "index.js",
+  "scripts": {
+    "build": "npx tsc",
+    "start": "npm run build && node ./dist/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/a3mc/helperbot.git"
+  },
+  "keywords": [],
+  "author": "ART3MIS.CLOUD",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/a3mc/helperbot/issues"
+  },
+  "homepage": "https://github.com/a3mc/helperbot#readme",
+  "devDependencies": {
+    "typescript": "^4.6.4"
+  }
+}
