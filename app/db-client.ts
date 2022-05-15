@@ -1,4 +1,5 @@
 import moment from "moment";
+import { logger } from "./logger";
 
 const mysql = require( 'mysql' );
 const util = require( 'util' );
@@ -13,16 +14,16 @@ export class DbClient {
     protected query = util.promisify( this.connection.query ).bind( this.connection );
 
     constructor() {
-        console.log( 'Db helper' );
         this.connect();
     }
 
     connect(): void {
         this.connection.connect( ( err ) => {
             if ( err ) {
-                console.error( 'MySQL connection error occurred', err );
+                logger.warn( err );
+                logger.error( 'MySQL connection error occurred', );
             } else {
-                console.log( 'Connected to MySQL Server' );
+                logger.debug( 'Connected to MySQL Server' );
                 this.connection.query( 'USE ' + process.env.MYSQL_DATABASE );
             }
         } );

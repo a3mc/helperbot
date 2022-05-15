@@ -3,6 +3,7 @@ import { Telegraf } from 'telegraf'
 import dotenv from "dotenv";
 import { DbClient } from "./db-client";
 import moment from "moment";
+import { logger } from "./logger";
 
 dotenv.config();
 
@@ -22,25 +23,22 @@ setInterval( async () => {
 
 async function checkLoop(): Promise<void> {
     // if it's time for a digest, and it wasn't posted already
-
     const digestTime = moment().utc()
         .hours( Number( process.env.DIGEST_TIME_H ) )
         .minutes( Number( process.env.DIGEST_TIME_M ) )
         .seconds( 0 );
 
-    console.log( digestTime.format(), moment.utc().format() )
-
     if (
         moment().utc().isSameOrAfter( digestTime ) &&
         moment().utc().isBefore( digestTime.clone().add( process.env.POST_RETRY_TIME, 'minutes' ) )
     ) {
-        console.log( 'Time to post Daily Digest.', digestTime.format() )
+        logger.info( 'Time to post Daily Digest.' )
         if ( await dbClient.checkLastDigest() ) {
-            console.log( 'Digested has been already posted, skipping.' );
+            logger.debug( 'Digested has been already posted, skipping.' );
             return;
         }
     } else {
-        console.log( 'Not the right time to post digest' );
+        logger.debug( 'Not the right time to post digest' );
         return;
     }
 
@@ -49,29 +47,29 @@ async function checkLoop(): Promise<void> {
     //let digestText = await digest.listSimple();
 
     if ( !digestText.trim().length ) {
-        console.log( 'Nothing to post.' );
+        logger.debug( 'Nothing to post.' );
         return;
     }
 
-    console.log( digestText );
+    logger.debug( digestText );
 
     // Unlikely to happen, but prevent exceeding the message size limit;
     if ( digestText.length > 4095 ) {
-        console.warn( 'Too long message.' );
+        logger.warn( 'Too long message.' );
         digestText = digestText.substring( 0, 4095 ) + '…';
     }
 
     const result = await bot.telegram.sendMessage( Number( process.env.CHAT_ID ), digestText, {
         parse_mode: 'MarkdownV2',
     } ).catch( error => {
-        console.warn( error );
+        logger.warn( error );
     } );
 
     if ( result ) {
-        console.log( 'Successfully posted.' );
+        logger.info( 'Successfully posted.' );
         await dbClient.post( 0, 1, 0 );
     } else {
-        console.error( 'Failed to post message.' );
+        logger.error( 'Failed to post message.' );
         await dbClient.post( 0, 0, 0 );
     }
 
@@ -94,7 +92,7 @@ async function checkLoop(): Promise<void> {
 
 // Launch the bot.
 bot.launch().then( () => {
-    console.log( 'Bot started.' );
+    logger.info( 'Bot started successfully.' );
 } );
 
 // Enable graceful stop.

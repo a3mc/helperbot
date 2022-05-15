@@ -12,7 +12,6 @@ export class Digest {
     }
 
     constructor() {
-        console.log( 'hi digest' )
     }
 
     async createDigest(): Promise<any> {
@@ -60,7 +59,7 @@ export class Digest {
         if ( simple.length ) {
             const multiple = simple.length > 1;
             text += this.icons.simple + ` __\*${ simple.length } ${ voteType } SIMPLE vote${ multiple ? 's' : '' }* ` +
-                    `require${ multiple ? '' : 's' } attention:__\n\n`;
+                `require${ multiple ? '' : 's' } attention:__\n\n`;
 
             for ( const vote of simple ) {
                 text += this.voteToText( vote );
@@ -166,7 +165,7 @@ export class Digest {
     }
 
     timeLeftToHM( timeLeft: string ): string {
-        return timeLeft.substring( 0, 5).replace( /:/, 'h ') + 'm';
+        return timeLeft.substring( 0, 5 ).replace( /:/, 'h ' ) + 'm';
     }
 
     endingSoon( votes: any[] ): any[] {

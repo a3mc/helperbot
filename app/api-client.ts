@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { logger } from "./logger";
 
 export class ApiClient {
 
@@ -21,10 +22,10 @@ export class ApiClient {
             await this.login();
             return await this.get( endpoint );
         }
-        const result = await this.requestWrapper( 'get',endpoint );
+        const result = await this.requestWrapper( 'get', endpoint );
         if ( result.status && result.status >= 200 && result.status < 400 && result.data ) {
             if ( result.data.message && result.data.message === 'Not authorized' ) {
-                console.warn( 'Not logged in' );
+                logger.warn( 'Not logged in.' );
                 this.isLoggedIn = false;
                 await this.login();
                 return await this.get( endpoint );
@@ -34,13 +35,13 @@ export class ApiClient {
     }
 
     async login(): Promise<any> {
-        console.log( 'Signing in' );
-        const result = await this.requestWrapper( 'post','login', {
+        logger.info( 'Signing in' );
+        const result = await this.requestWrapper( 'post', 'login', {
             email: process.env.LOGIN,
             password: process.env.PASSWORD
         } );
         if ( result.data && result.data.success && result.data.user ) {
-            console.log( 'Signed in' );
+            logger.info( 'Signed in.' );
             this._apiAuthToken = result.data.user.accessTokenAPI;
             await this.me();
             await this.settings();
@@ -51,24 +52,26 @@ export class ApiClient {
     }
 
     async me(): Promise<any> {
-        console.log( 'Me' );
-        const result = await this.requestWrapper( 'get','me' );
+        logger.debug( 'Getting Me info' );
+        const result = await this.requestWrapper( 'get', 'me' );
         if ( result.data && result.data.success && result.data.me ) {
             this.totalMembers = result.data.me.totalMembers;
         } else {
-            throw new Error( 'Error getting Me endpoint' );
+            logger.error( 'Error getting Me endpoint' )
+            throw new Error();
         }
     }
 
     async settings(): Promise<any> {
-        console.log( 'Settings' );
-        const result = await this.requestWrapper( 'get','shared/global-settings' );
+        logger.debug( 'Getting Setting' );
+        const result = await this.requestWrapper( 'get', 'shared/global-settings' );
         if ( result.data && result.data.success && result.data.settings ) {
             this.quorumRate = parseInt( result.data.settings.quorum_rate );
             this.quorumRateMilestone = parseInt( result.data.settings.quorum_rate_milestone );
             this.quorumRateSimple = parseInt( result.data.settings.quorum_simple );
         } else {
-            throw new Error( 'Error getting Settings' );
+            logger.error( 'Error getting Settings.' )
+            throw new Error();
         }
     }
 
@@ -88,15 +91,17 @@ export class ApiClient {
         if ( method === 'get' ) {
             config.headers = { Authorization: 'Bearer ' + this._apiAuthToken };
             result = await axios.get( this._apiUrlPrefix + url, config ).catch( ( error: any ) => {
-                console.error( error );
+                logger.warn( error );
+                logger.error( 'Error performing a GET request.' );
                 clearTimeout( timeout );
-                throw new Error( 'Error performing a GET request.' );
+                throw new Error();
             } );
         } else {
             result = await axios.post( this._apiUrlPrefix + url, data, config ).catch( ( error: any ) => {
-                console.error( error );
+                logger.warn( error );
+                logger.error( 'Error performing a POST request.' );
                 clearTimeout( timeout );
-                throw new Error( 'Error performing a POST request.' );
+                throw new Error();
             } );
         }
         clearTimeout( timeout );

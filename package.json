@@ -28,6 +28,8 @@
         "dotenv": "^16.0.0",
         "moment": "^2.29.3",
         "mysql": "^2.18.1",
-        "telegraf": "^4.8.1"
+        "telegraf": "^4.8.1",
+        "winston": "^3.7.2",
+        "winston-telegram": "^2.6.0"
     }
 }
