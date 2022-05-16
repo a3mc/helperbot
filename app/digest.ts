@@ -20,8 +20,6 @@ export class Digest {
         const discussions = await this.discussions();
 
         return [
-            //this.simpleVotesText( informal, 'informal' ),
-            //this.simpleVotesText( formal, 'formal' ),
             this.endingVotesText( informal, 'informal' ),
             this.endingVotesText( formal, 'formal' ),
             this.discussionsText( discussions ),
@@ -71,17 +69,6 @@ export class Digest {
     discussionsText( discussions: any[] ): string {
         let text = '';
 
-        // These discussions should be removed as they are no longer active.
-        const deadDiscussions = discussions.filter(
-            discussion => moment( discussion.approved_at ).utc()
-                .isBefore( moment().utc().add( -90, 'days' ) )
-        );
-        if ( deadDiscussions.length ) {
-            const multiple = deadDiscussions.length > 1;
-            text += this.icons.dead + ` __There ${ multiple ? 'are' : 'is' } \*${ deadDiscussions.length } ` +
-                `discussion${ multiple ? 's' : '' }* older than 90 days__\\.\n\n`;
-        }
-
         // These discussions have less than 1 week before the 90-days limit hits.
         const endingDiscussions = discussions.filter(
             discussion =>
@@ -114,6 +101,17 @@ export class Digest {
             for ( const discussion of interestingDiscussions ) {
                 text += this.discussionToText( discussion );
             }
+        }
+
+        // These discussions should be removed as they are no longer active.
+        const deadDiscussions = discussions.filter(
+            discussion => moment( discussion.approved_at ).utc()
+                .isBefore( moment().utc().add( -90, 'days' ) )
+        );
+        if ( deadDiscussions.length ) {
+            const multiple = deadDiscussions.length > 1;
+            text += this.icons.dead + ` __There ${ multiple ? 'are' : 'is' } \*${ deadDiscussions.length } ` +
+                `discussion${ multiple ? 's' : '' }* older than 90 days__\\.\n\n`;
         }
         return text;
     }
@@ -177,6 +175,7 @@ export class Digest {
             } else if ( vote.content_type === 'grant' ) {
                 quorumRate = this.apiClient.quorumRate;
             } else if ( vote.content_type === 'simple' ) {
+                console.log( 'simple',this.apiClient.quorumRateSimple )
                 quorumRate = this.apiClient.quorumRateSimple;
             } else {
                 return false;

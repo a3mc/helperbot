@@ -68,7 +68,7 @@ export class ApiClient {
         if ( result.data && result.data.success && result.data.settings ) {
             this.quorumRate = parseInt( result.data.settings.quorum_rate );
             this.quorumRateMilestone = parseInt( result.data.settings.quorum_rate_milestone );
-            this.quorumRateSimple = parseInt( result.data.settings.quorum_simple );
+            this.quorumRateSimple = parseInt( result.data.settings.quorum_rate_simple );
         } else {
             logger.error( 'Error getting Settings.' )
             throw new Error();
