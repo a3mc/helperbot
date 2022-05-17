@@ -1,18 +1,11 @@
-import { ApiClient } from "./api-client";
-import moment from "moment";
+import { ApiClient } from './api-client';
+import moment from 'moment';
+import { DbClient } from './db-client';
+import { ICONS, VOTE_TYPES } from './constants';
 
 export class Digest {
     protected apiClient = new ApiClient();
-    public icons = {
-        dead: '☠️',
-        ending: '⏳',
-        interest: '📣',
-        attention: '‼️',
-        simple: '💚',
-    }
-
-    constructor() {
-    }
+    protected dbClient = new DbClient();
 
     async createDigest(): Promise<any> {
         const informal = await this.informalVotes();
@@ -36,6 +29,34 @@ export class Digest {
         ].join( '' );
     }
 
+    async newSimple(): Promise<any> {
+        const informal = ( await this.informalVotes() ).filter( vote => vote.content_type === 'simple' );
+        const formal = ( await this.formalVotes() ).filter( vote => vote.content_type === 'simple' );
+        let newInformal = [];
+        let newFormal = [];
+
+        // Check if posts for the votes were already made.
+        for ( const vote of informal ) {
+            if ( !await this.dbClient.checkSimplePost( vote.id, VOTE_TYPES.informal ) ) {
+                newInformal.push( vote );
+            }
+        }
+        for ( const vote of formal ) {
+            if ( !await this.dbClient.checkSimplePost( vote.id, VOTE_TYPES.formal ) ) {
+                newFormal.push( vote );
+            }
+        }
+
+        return {
+            informalIds: newInformal.map( vote => vote.id ),
+            formalIds: newFormal.map( vote => vote.id ),
+            text: [
+                this.simpleVotesText( newInformal, 'informal', true ),
+                this.simpleVotesText( newFormal, 'formal', true ),
+            ].join( '' )
+        }
+    }
+
     async informalVotes(): Promise<any> {
         const result = await this.apiClient.get( process.env.INFORMAL_SORTED_URL );
         return result.votes;
@@ -51,14 +72,18 @@ export class Digest {
         return result.proposals;
     }
 
-    simpleVotesText( votes: any[], voteType: string ): string {
+    simpleVotesText( votes: any[], voteType: string, newVote = false ): string {
         let text = '';
         const simple = votes.filter( vote => vote.content_type === 'simple' );
         if ( simple.length ) {
             const multiple = simple.length > 1;
-            text += this.icons.simple + ` __\*${ simple.length } ${ voteType } SIMPLE vote${ multiple ? 's' : '' }* ` +
-                `require${ multiple ? '' : 's' } attention:__\n\n`;
-
+            if ( newVote ) {
+                text += ICONS.new_simple + ` __\*${ simple.length } new SIMPLE* ` +
+                    `just entered \_${ voteType }_:__\n\n`;
+            } else {
+                text += ICONS.simple + ` __\*${ simple.length } ${ voteType } SIMPLE* ` +
+                    `require${ multiple ? '' : 's' } attention:__\n\n`;
+            }
             for ( const vote of simple ) {
                 text += this.voteToText( vote );
             }
@@ -79,7 +104,7 @@ export class Digest {
         );
         if ( endingDiscussions.length ) {
             const multiple = endingDiscussions.length > 1;
-            text += this.icons.ending + ` __\*${ endingDiscussions.length } discussion${ multiple ? 's' : '' }* ` +
+            text += ICONS.ending + ` __\*${ endingDiscussions.length } discussion${ multiple ? 's' : '' }* ` +
                 `${ multiple ? 'are' : 'is' } ending within ${ process.env.ENDING_DAYS } days:__\n\n`;
 
             for ( const discussion of endingDiscussions ) {
@@ -95,8 +120,8 @@ export class Digest {
         );
         if ( interestingDiscussions.length ) {
             const multiple = interestingDiscussions.length > 1;
-            text += this.icons.interest + ` __\*${ interestingDiscussions.length } discussion${ multiple ? 's' : '' }* ` +
-                `may require more attention:__\n\n`;
+            text += ICONS.interest + ` __\*${ interestingDiscussions.length } ` +
+                `discussion${ multiple ? 's' : '' }* require attention:__\n\n`;
 
             for ( const discussion of interestingDiscussions ) {
                 text += this.discussionToText( discussion );
@@ -110,7 +135,7 @@ export class Digest {
         );
         if ( deadDiscussions.length ) {
             const multiple = deadDiscussions.length > 1;
-            text += this.icons.dead + ` __There ${ multiple ? 'are' : 'is' } \*${ deadDiscussions.length } ` +
+            text += ICONS.dead + ` __There ${ multiple ? 'are' : 'is' } \*${ deadDiscussions.length } ` +
                 `discussion${ multiple ? 's' : '' }* older than 90 days__\\.\n\n`;
         }
         return text;
@@ -120,10 +145,7 @@ export class Digest {
         let text = '';
         const ending = this.endingSoon( votes );
         if ( ending.length ) {
-            const multiple = ending.length > 1;
-            text += this.icons.attention + ` __\*${ ending.length } ${ voteType } vote${ multiple ? 's' : '' }* ` +
-                `without a quorum end${ multiple ? '' : 's' } within ${ process.env.SOON_TIMESPAN }h:__\n\n`;
-
+            text += ICONS.attention + ` __\*${ ending.length } ${ voteType }* - no quorum:__\n\n`;
             for ( const vote of ending ) {
                 text += this.voteToText( vote );
             }
@@ -134,7 +156,7 @@ export class Digest {
     voteToText( vote: any ): string {
         const title = '"' + this.escapeText( vote.title ) + '"';
         const contentType = this.escapeText( vote.content_type );
-        const link = process.env.API_URL_PREFIX + process.env.PROPOSAL_URL + vote.proposalId;
+        const link = process.env.PORTAL_URL_PREFIX + process.env.PROPOSAL_URL + vote.proposalId;
 
         return `[\\#${ vote.proposalId }](${ link }) \_${ contentType }_: ${ title }\n` +
             `\\(\_${ vote.result_count }/${ vote.total_member || vote.total_user_va } voted_\\. ` +
@@ -144,18 +166,16 @@ export class Digest {
     discussionToText( discussion: any, icon: string = '' ): string {
         const title = '"' + this.escapeText( discussion.title ) + '"';
         const contentType = this.escapeText( discussion.type );
-        const link = process.env.API_URL_PREFIX + process.env.PROPOSAL_URL + discussion.id;
-        const topicLink = process.env.TOPIC_URL + discussion.discourse_topic_id;
+        const link = process.env.PORTAL_URL_PREFIX + process.env.PROPOSAL_URL + discussion.id;
         const attestationRate = this.escapeText(
             String( Math.round( discussion.attestation.rate * 100 ) / 100 )
         );
         const approvedAt = this.escapeText( discussion.approved_at.substring( 0, 10 ) );
 
-        return ( icon ? icon + ' ' : '' ) + `[\\#${ discussion.id }](${ link }) / ` +
-            `[Topic ${ discussion.discourse_topic_id }](${ topicLink }) ` +
+        return ( icon ? icon + ' ' : '' ) + `[\\#${ discussion.id }](${ link }) ` +
             `\_${ contentType }_: ${ title }\n` +
-            `\\(\_Attestation rate:_ \*${ attestationRate }%* ` +
-            `\_Approved at:_ ${ approvedAt }\\)\n\n`;
+            `\\(\_Att\\. rate:_ \*${ attestationRate }%* ` +
+            `\_Approved:_ ${ approvedAt }\\)\n\n`;
     }
 
     timeLeftToSeconds( timeLeft: string ): number {

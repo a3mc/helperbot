@@ -1,8 +1,7 @@
 import axios from 'axios';
-import { logger } from "./logger";
+import { logger } from './logger';
 
 export class ApiClient {
-
     public isLoggedIn = false;
     public totalMembers: number;
     public quorumRate: number;
@@ -13,9 +12,6 @@ export class ApiClient {
     private _apiAuthToken: string;
     private _requestTimeout = Number( process.env.REQUEST_TIMEOUT );
 
-    constructor() {
-    }
-
     async get( endpoint: string ): Promise<any> {
         // First sign in if needed
         if ( !this.isLoggedIn ) {
@@ -24,6 +20,7 @@ export class ApiClient {
         }
         const result = await this.requestWrapper( 'get', endpoint );
         if ( result.status && result.status >= 200 && result.status < 400 && result.data ) {
+            // Re-login if token expired and retry the request.
             if ( result.data.message && result.data.message === 'Not authorized' ) {
                 logger.warn( 'Not logged in.' );
                 this.isLoggedIn = false;
@@ -70,7 +67,7 @@ export class ApiClient {
             this.quorumRateMilestone = parseInt( result.data.settings.quorum_rate_milestone );
             this.quorumRateSimple = parseInt( result.data.settings.quorum_rate_simple );
         } else {
-            logger.error( 'Error getting Settings.' )
+            logger.error( 'Error getting Settings.' );
             throw new Error();
         }
     }

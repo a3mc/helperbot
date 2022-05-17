@@ -1,8 +1,8 @@
-import moment from "moment";
-import { logger } from "./logger";
-
-const mysql = require( 'mysql' );
-const util = require( 'util' );
+import moment from 'moment';
+import { logger } from './logger';
+import mysql from 'mysql';
+import util from 'util';
+import { POST_TYPES } from './constants';
 
 export class DbClient {
     protected pool = mysql.createPool( {
@@ -12,15 +12,14 @@ export class DbClient {
         password: process.env.MYSQL_PASSWORD,
         database: process.env.MYSQL_DATABASE
     } );
-
     protected query = util.promisify( this.pool.query ).bind( this.pool );
 
-    constructor() {
-    }
-
-    async post( type: number, result: number, action: number ): Promise<void> {
-        const query = 'INSERT INTO posts (type, date, result, action) VALUES (?, ?, ?, ?)';
-        await this.query( query, [type, moment().utc().format( 'YYYY-MM-DD HH:mm:ss' ), result, action] )
+    async post( type: number, result: number, proposalId= 0, voteType = 0  ): Promise<void> {
+        const query = 'INSERT INTO posts (type, date, result, proposal_id, vote_type) VALUES (?, ?, ?, ?, ?)';
+        await this.query(
+            query,
+            [type, moment().utc().format( 'YYYY-MM-DD HH:mm:ss' ), result, proposalId, voteType]
+        )
             .catch( error => {
                 logger.warn( error );
                 logger.error( 'MySQL error when inserting a record.' );
@@ -32,13 +31,13 @@ export class DbClient {
         let dateMoment = moment().utc();
         let date: string;
 
-        if ( type === 0 ) {
+        if ( type === POST_TYPES.digest ) {
             // Checking if digest was already posted within some time window.
             date = dateMoment.add( -Number( process.env.POST_RETRY_TIME ), 'minutes' )
                 .format( 'YYYY-MM-DD HH:mm:ss' );
-        } else if ( type === 1 ) {
-            // List of simple votes is posted again in 12h. We add extra 10 minutes to prevent possible duplication.
-            date = dateMoment.add( -12, 'hours' ).add( -10, 'minutes' )
+        } else if ( type === POST_TYPES.active_simple ) {
+            // List of simple votes is posted again in 12h. We add some extra to prevent possible duplication.
+            date = dateMoment.add( -12, 'hours' ).add( - Number( process.env.POST_RETRY_TIME ), 'minutes' )
                 .format( 'YYYY-MM-DD HH:mm:ss' );
         }
 
@@ -53,5 +52,15 @@ export class DbClient {
         return !!result.length;
     }
 
+    async checkSimplePost( proposalId: number, voteType: number ): Promise<boolean> {
+        const query = 'SELECT id FROM posts WHERE type=? AND result=? AND proposal_id=? AND vote_type=?';
+        const result = await this.query( query, [POST_TYPES.new_simple, 1, proposalId, voteType] )
+            .catch( error => {
+                logger.warn( error );
+                logger.error( 'MySQL error when checking for records.' );
+                throw new Error();
+            } );
 
+        return !!result.length;
+    }
 }
