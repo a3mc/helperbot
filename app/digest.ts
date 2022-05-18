@@ -57,6 +57,23 @@ export class Digest {
         }
     }
 
+    async newFailedNoQuorum(): Promise<any> {
+        const noQuorum = ( await this.completedVotes() ).filter( vote => vote.result === 'no-quorum' );
+        let newNoQuorum = [];
+
+        // Check if posts for the votes were already made.
+        for ( const vote of noQuorum ) {
+            if ( !await this.dbClient.checkFailedPost( vote.id ) ) {
+                newNoQuorum.push( vote );
+            }
+        }
+
+        return {
+            votesIds: newNoQuorum.map( vote => vote.id ),
+            text: this.failedNoQuorumText( newNoQuorum )
+        }
+    }
+
     async informalVotes(): Promise<any> {
         const result = await this.apiClient.get( process.env.INFORMAL_SORTED_URL );
         return result.votes;
@@ -64,6 +81,11 @@ export class Digest {
 
     async formalVotes(): Promise<any> {
         const result = await this.apiClient.get( process.env.FORMAL_SORTED_URL );
+        return result.votes;
+    }
+
+    async completedVotes(): Promise<any> {
+        const result = await this.apiClient.get( process.env.COMPLETED_SORTED_URL );
         return result.votes;
     }
 
@@ -86,6 +108,17 @@ export class Digest {
             }
             for ( const vote of simple ) {
                 text += this.voteToText( vote );
+            }
+        }
+        return text;
+    }
+
+    failedNoQuorumText( votes: any[] ): string {
+        let text = '';
+        if ( votes.length ) {
+            text += ICONS.no_quorum + ` __\*${ votes.length } failed without no quorum:*__\n\n`;
+            for ( const vote of votes ) {
+                text += this.voteToText( vote, false );
             }
         }
         return text;
@@ -153,14 +186,16 @@ export class Digest {
         return text;
     }
 
-    voteToText( vote: any ): string {
+    voteToText( vote: any, full = true ): string {
         const title = '"' + this.escapeText( vote.title ) + '"';
         const contentType = this.escapeText( vote.content_type );
         const link = process.env.PORTAL_URL_PREFIX + process.env.PROPOSAL_URL + vote.proposalId;
 
-        return `[\\#${ vote.proposalId }](${ link }) \_${ contentType }_: ${ title }\n` +
-            `\\(\_${ vote.result_count }/${ vote.total_member || vote.total_user_va } voted_\\. ` +
-            `\_Time left: ` + this.timeLeftToHM( vote.timeLeft ) + `_\\)\n\n`;
+        return `[\\#${ vote.proposalId }](${ link }) \_${ contentType }_: ${ title }` +
+            ( full ? (
+                `\n\\(\_${ vote.result_count }/${ vote.total_member || vote.total_user_va } voted_\\. ` +
+                `\_Time left: ` + this.timeLeftToHM( vote.timeLeft ) + `_\\)`
+            ) : '' ) + '\n\n';
     }
 
     discussionToText( discussion: any, icon: string = '' ): string {
@@ -195,7 +230,7 @@ export class Digest {
             } else if ( vote.content_type === 'grant' ) {
                 quorumRate = this.apiClient.quorumRate;
             } else if ( vote.content_type === 'simple' ) {
-                console.log( 'simple',this.apiClient.quorumRateSimple )
+                console.log( 'simple', this.apiClient.quorumRateSimple )
                 quorumRate = this.apiClient.quorumRateSimple;
             } else {
                 return false;

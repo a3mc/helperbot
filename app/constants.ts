@@ -5,12 +5,14 @@ export const ICONS = {
     attention: '‼️',
     simple: '💚',
     new_simple: '⭐️',
+    no_quorum: '🙈',
 };
 
 export const POST_TYPES = {
     digest: 0,
     active_simple: 1,
     new_simple: 2,
+    failed_no_quorum: 3,
 };
 
 export const VOTE_TYPES = {

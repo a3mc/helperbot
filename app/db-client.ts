@@ -63,4 +63,16 @@ export class DbClient {
 
         return !!result.length;
     }
+
+    async checkFailedPost( proposalId: number ): Promise<boolean> {
+        const query = 'SELECT id FROM posts WHERE type=? AND result=? AND proposal_id=?';
+        const result = await this.query( query, [POST_TYPES.failed_no_quorum, 1, proposalId] )
+            .catch( error => {
+                logger.warn( error );
+                logger.error( 'MySQL error when checking for records.' );
+                throw new Error();
+            } );
+
+        return !!result.length;
+    }
 }

@@ -36,6 +36,18 @@ async function checkLoop(): Promise<void> {
                     newSimpleVotes.formalIds
                 );
             }
+
+            // Post immediately about votes failed because of no quorum.
+            const newFailedVotes = await digest.newFailedNoQuorum();
+            if ( newFailedVotes.text.length ) {
+                // Check if there was already a post about each failed vote.
+                logger.info( 'New failed votes with no quorum.' );
+                await postMessage(
+                    newFailedVotes.text,
+                    POST_TYPES.failed_no_quorum,
+                    newFailedVotes.votesIds,
+                );
+            }
         }
     }
 }
@@ -48,7 +60,7 @@ async function postMessage(
     formalIds: number[] = []
 ): Promise<void> {
     if ( !digestText.trim().length ) {
-        logger.debug( 'Nothing to post.' );
+        // Nothing to post.
         return;
     }
 
@@ -77,6 +89,11 @@ async function postMessage(
             }
             for ( const id of formalIds ) {
                 await dbClient.post( type, 1, id, VOTE_TYPES.formal );
+            }
+        } else if ( type === POST_TYPES.failed_no_quorum ) {
+            // Save ids of failed no-quorum votes.
+            for ( const id of informalIds ) {
+                await dbClient.post( type, 1, id );
             }
         } else {
             // Save that digest was posted successfully.
