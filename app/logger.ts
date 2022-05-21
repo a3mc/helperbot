@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 export const logger = winston.createLogger( {
+    name: 'console.logs',
     level: 'debug',
     format: combine(
         timestamp(),
@@ -21,11 +22,11 @@ export const logger = winston.createLogger( {
     ],
 } );
 
-if ( process.env.TG_TOKEN && process.env.TG_CHAT_ID ) {
+if ( process.env.TG_ERROR_TOKEN && process.env.TG_ERROR_CHAT_ID ) {
     logger.add( new TelegramLogger( {
         level: 'error',
-        token: process.env.TG_TOKEN,
-        chatId: process.env.TG_CHAT_ID,
+        token: process.env.TG_ERROR_TOKEN,
+        chatId: process.env.TG_ERROR_CHAT_ID,
     } ) );
 }
 

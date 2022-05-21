@@ -230,7 +230,6 @@ export class Digest {
             } else if ( vote.content_type === 'grant' ) {
                 quorumRate = this.apiClient.quorumRate;
             } else if ( vote.content_type === 'simple' ) {
-                console.log( 'simple', this.apiClient.quorumRateSimple )
                 quorumRate = this.apiClient.quorumRateSimple;
             } else {
                 return false;

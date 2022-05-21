@@ -37,7 +37,7 @@ async function checkLoop(): Promise<void> {
                 );
             }
 
-            // Post immediately about votes failed because of no quorum.
+            // Post immediately about completed votes failed because of no-quorum.
             const newFailedVotes = await digest.newFailedNoQuorum();
             if ( newFailedVotes.text.length ) {
                 // Check if there was already a post about each failed vote.
@@ -134,9 +134,18 @@ async function checkForDailyDigestTime(): Promise<boolean> {
 // Launch the bot.
 bot.launch().then( async () => {
     logger.info( 'Bot started successfully.' );
-    await checkLoop();
+    await checkLoop()
+        .catch( error => {
+            logger.error( error );
+            process.exit( 1 );
+        } );
     setInterval(
-        async () => { await checkLoop(); },
+        async () => {
+            await checkLoop().catch( error => {
+                logger.warn( error );
+                process.exit( 1 );
+            } );
+        },
         Number( process.env.CHECK_INTERVAL ) * 60000
     );
 } );

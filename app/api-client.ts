@@ -32,7 +32,7 @@ export class ApiClient {
     }
 
     async login(): Promise<any> {
-        logger.info( 'Signing in' );
+        logger.debug( 'Signing in.' );
         const result = await this.requestWrapper( 'post', 'login', {
             email: process.env.LOGIN,
             password: process.env.PASSWORD
@@ -44,23 +44,23 @@ export class ApiClient {
             await this.settings();
             this.isLoggedIn = true;
         } else {
-            throw new Error( 'Error signing in' );
+            throw new Error( 'Error signing in.' );
         }
     }
 
     async me(): Promise<any> {
-        logger.debug( 'Getting Me info' );
+        logger.debug( 'Getting Me info.' );
         const result = await this.requestWrapper( 'get', 'me' );
         if ( result.data && result.data.success && result.data.me ) {
             this.totalMembers = result.data.me.totalMembers;
         } else {
-            logger.error( 'Error getting Me endpoint' )
+            logger.error( 'Error getting Me endpoint.' )
             throw new Error();
         }
     }
 
     async settings(): Promise<any> {
-        logger.debug( 'Getting Setting' );
+        logger.debug( 'Getting Settings.' );
         const result = await this.requestWrapper( 'get', 'shared/global-settings' );
         if ( result.data && result.data.success && result.data.settings ) {
             this.quorumRate = parseInt( result.data.settings.quorum_rate );
