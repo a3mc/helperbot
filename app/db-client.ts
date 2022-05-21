@@ -10,7 +10,7 @@ export class DbClient {
         host: process.env.MYSQL_HOST,
         user: process.env.MYSQL_USER,
         password: process.env.MYSQL_PASSWORD,
-        database: process.env.MYSQL_DATABASE
+        database: process.env.MYSQL_DATABASE,
     } );
     protected query = util.promisify( this.pool.query ).bind( this.pool );
 
@@ -74,5 +74,14 @@ export class DbClient {
             } );
 
         return !!result.length;
+    }
+
+    async migrate( query: string ): Promise<void> {
+        const result = await this.query( query )
+            .catch( error => {
+                logger.warn( error );
+                logger.error( 'MySQL error executing migration script.' );
+                throw new Error();
+            } );
     }
 }
