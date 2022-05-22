@@ -13,7 +13,7 @@ The bot requires the following to be installed on your system:
 - Telegram channel (and you know it's id)
 
 ### Installation - Quick Start
-###### That assumes your setup already meets the requirements above. For a step-to step guide please refer to the full installation doc in the `/docs` folder that includes setting up Mysql, Node, etc.
+###### That assumes your setup already meets the requirements above. For a step-to step guide please refer to the full installation doc in the `/docs` folder that includes creating a Telegram Bot, preparing MSQL user, etc.
 
 1. Install the packages:
 ```shell
