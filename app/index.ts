@@ -14,6 +14,7 @@ const dbClient = new DbClient();
 
 // Check if anything needs to be posted.
 async function checkLoop(): Promise<void> {
+    logger.debug( 'New check cycle.' );
     // If it's time for a digest, and it wasn't posted already.
     if ( await checkForDailyDigestTime() ) {
         // Always list Simple votes before the digest.
