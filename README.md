@@ -37,7 +37,7 @@ $ npm run migrate
 $ npm test
 ```
 
-6 To start the bot for development or test purposes you can run:
+6. To start the bot for development or test purposes you can run:
 
 ```shell
 $ npm start

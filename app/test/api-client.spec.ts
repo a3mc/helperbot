@@ -1,9 +1,8 @@
 import { expect } from 'chai';
 import nock from 'nock';
 import dotenv from 'dotenv';
-import { CompletedVotesMock, DiscussionsMock, NewSimpleVotesMock } from './mocks';
+import { NewSimpleVotesMock } from './mocks';
 import { logger } from '../logger';
-import moment from 'moment';
 import { ApiClient } from '../api-client';
 
 dotenv.config();
