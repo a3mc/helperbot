@@ -9,8 +9,11 @@ The bot requires the following to be installed on your system:
 - NodeJS 16+
 - Mysql 8+ (You'll have to create a database and a user)
 - PM2
+- A new Telegram bot
+- Telegram channel (and you know it's id)
 
-### Installation
+### Installation - Quick Start
+###### That assumes your setup already meets the requirements above. For a step-to step guide please refer to the full installation doc in the `/docs` folder that includes setting up Mysql, Node, etc.
 
 1. Install the packages:
 ```shell
@@ -23,21 +26,21 @@ $ npm install
 $ cp example.env .env
 ```
 
-3. Edit `.env`. All fields except the Telegram error alert bot details are required.
+3. Edit `.env`. All fields except the Telegram error alert bot details are required. Please see the comments in the `example.env` for more details.
 
-4. Run the migration script.
+4. Run the migration script. It will create a table in the database you've provided in the `.env` file.
 
 ```shell
 $ npm run migrate
 ```
 
-5. Run the unit tests:
+5. Run the unit tests. It uses mocked responses to simulate actual queries to the API.
 
 ```shell
 $ npm test
 ```
 
-6. To start the bot for development or test purposes you can run:
+6. To build the project and start the bot for development or test purposes run:
 
 ```shell
 $ npm start
@@ -48,7 +51,15 @@ $ npm start
 $ npm run start:pm2
 ```
 
-This will build and start the process under PM2. To view the status, logs, stop or reload the project, please to the [PM2 documentation](https://pm2.keymetrics.io/docs/usage/quick-start/)
+This will build and start the process under PM2. It will also start to output the logs to the console. To manage the project with PM2, please refer to the [PM2 documentation](https://pm2.keymetrics.io/docs/usage/quick-start/)
+Here are a few PM2 commands you may find useful (`all` assumes that's the only project under PM2 control on your machine):
+```shell
+$ pm2 status
+$ pm2 logs all
+$ pm2 monit
+$ pm2 stop all
+$ pm2 reload all
+```
 
 ### How The Bot Works
 
