@@ -1,7 +1,7 @@
 import { ApiClient } from './api-client';
 import moment from 'moment';
 import { DbClient } from './db-client';
-import { ICONS, VOTE_TYPES } from './constants';
+import { ICONS, POST_TYPES, VOTE_TYPES } from './constants';
 
 export class Digest {
     protected apiClient = new ApiClient();
@@ -13,8 +13,8 @@ export class Digest {
         const discussions = await this.discussions();
 
         return [
-            this.endingVotesText( informal, 'informal' ),
-            this.endingVotesText( formal, 'formal' ),
+            this.endingVotesText( this.endingSoon( informal ), 'informal' ),
+            this.endingVotesText( this.endingSoon( formal ), 'formal' ),
             this.discussionsText( discussions ),
         ].join( '' );
     }
@@ -53,6 +53,39 @@ export class Digest {
             text: [
                 this.simpleVotesText( newInformal, 'informal', true ),
                 this.simpleVotesText( newFormal, 'formal', true ),
+            ].join( '' )
+        }
+    }
+
+    async expiringSimpleNoQuorum(): Promise<any> {
+        const informal = this.endingSoon( ( await this.informalVotes() ).filter(
+            vote => vote.content_type === 'simple'
+        ), process.env.SIMPLE_NO_QUORUM_ALERT );
+        const formal = this.endingSoon( ( await this.formalVotes() ).filter(
+            vote => vote.content_type === 'simple'
+        ), process.env.SIMPLE_NO_QUORUM_ALERT );
+
+        let newInformal = [];
+        let newFormal = [];
+
+        // Check if posts for the votes were already made.
+        for ( const vote of informal ) {
+            if ( !await this.dbClient.checkSimplePost( vote.id, VOTE_TYPES.informal, POST_TYPES.expiring_simple ) ) {
+                newInformal.push( vote );
+            }
+        }
+        for ( const vote of formal ) {
+            if ( !await this.dbClient.checkSimplePost( vote.id, VOTE_TYPES.formal, POST_TYPES.expiring_simple ) ) {
+                newFormal.push( vote );
+            }
+        }
+
+        return {
+            informalIds: newInformal.map( vote => vote.id ),
+            formalIds: newFormal.map( vote => vote.id ),
+            text: [
+                this.endingVotesText( newInformal, 'informal' ),
+                this.endingVotesText( newFormal, 'formal' ),
             ].join( '' )
         }
     }
@@ -174,9 +207,8 @@ export class Digest {
         return text;
     }
 
-    endingVotesText( votes: any[], voteType: string ): string {
+    endingVotesText( ending: any[], voteType: string ): string {
         let text = '';
-        const ending = this.endingSoon( votes );
         if ( ending.length ) {
             text += ICONS.attention + ` __\*${ ending.length } ${ voteType }* - no quorum:__\n\n`;
             for ( const vote of ending ) {
@@ -221,7 +253,7 @@ export class Digest {
         return timeLeft.substring( 0, 5 ).replace( /:/, 'h ' ) + 'm';
     }
 
-    endingSoon( votes: any[] ): any[] {
+    endingSoon( votes: any[], soon = process.env.SOON_TIMESPAN ): any[] {
         // To prevent errors if introducing a new content_type or vote type we check it inside the loop for each vote.
         return votes.filter( vote => {
             let quorumRate: number;
@@ -239,7 +271,7 @@ export class Digest {
             const members = vote.type === 'informal' ? this.apiClient.totalMembers : vote.total_member;
 
             // Return a vote if it ends within given time interval and didn't reach the quorum rate yet.
-            return this.timeLeftToSeconds( vote.timeLeft ) < Number( process.env.SOON_TIMESPAN + '0000' ) &&
+            return this.timeLeftToSeconds( vote.timeLeft ) < Number( soon + '0000' ) &&
                 ( vote.result_count / members ) * 100 < quorumRate;
         } );
     }
