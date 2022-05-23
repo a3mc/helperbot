@@ -7,7 +7,7 @@
         "build": "npx tsc",
         "migrate": " npm run build && node dist/migrate.js",
         "start": "npm run build && node ./dist/index.js",
-        "start:pm2": "NODE_ENV=production npm run build && pm2 start ./dist/index.js --exp-backoff-restart-delay 3000 --kill-timeout 2000",
+        "start:pm2": "NODE_ENV=production npm run build && pm2 start ./dist/index.js --exp-backoff-restart-delay 3000 --kill-timeout 2000 && pm2 status && pm2 logs all",
         "clean": "rm -rf dist",
         "test": "npm run build && mocha 'dist/test/**/*.js' --recursive --timeout 60000 --exit"
     },
