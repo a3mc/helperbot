@@ -41,7 +41,6 @@ async function checkLoop(): Promise<void> {
             // Post immediately about completed votes failed because of no-quorum.
             const newFailedVotes = await digest.newFailedNoQuorum();
             if ( newFailedVotes.text.length ) {
-                // Check if there was already a post about each failed vote.
                 logger.info( 'New failed votes with no quorum.' );
                 await postMessage(
                     newFailedVotes.text,
@@ -49,6 +48,17 @@ async function checkLoop(): Promise<void> {
                     newFailedVotes.votesIds,
                 );
             }
+        }
+
+        // Extra alert about active Simple votes with now quorum.
+        const expiringSimple = await digest.expiringSimpleNoQuorum();
+        if ( expiringSimple.text.length ) {
+            logger.info( 'Expiring simple votes with no quorum.' );
+            await postMessage(
+                expiringSimple.text,
+                POST_TYPES.expiring_simple,
+                expiringSimple.votesIds,
+            );
         }
     }
 }
@@ -91,7 +101,7 @@ async function postMessage(
             for ( const id of formalIds ) {
                 await dbClient.post( type, 1, id, VOTE_TYPES.formal );
             }
-        } else if ( type === POST_TYPES.failed_no_quorum ) {
+        } else if ( type === POST_TYPES.failed_no_quorum || type === POST_TYPES.expiring_simple ) {
             // Save ids of failed no-quorum votes.
             for ( const id of informalIds ) {
                 await dbClient.post( type, 1, id );

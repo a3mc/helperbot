@@ -13,6 +13,7 @@ export const POST_TYPES = {
     active_simple: 1,
     new_simple: 2,
     failed_no_quorum: 3,
+    expiring_simple: 4,
 };
 
 export const VOTE_TYPES = {

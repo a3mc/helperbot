@@ -52,9 +52,13 @@ export class DbClient {
         return !!result.length;
     }
 
-    async checkSimplePost( proposalId: number, voteType: number ): Promise<boolean> {
+    async checkSimplePost(
+        proposalId: number,
+        voteType: number,
+        postType = POST_TYPES.new_simple,
+    ): Promise<boolean> {
         const query = 'SELECT id FROM posts WHERE type=? AND result=? AND proposal_id=? AND vote_type=?';
-        const result = await this.query( query, [POST_TYPES.new_simple, 1, proposalId, voteType] )
+        const result = await this.query( query, [postType, 1, proposalId, voteType] )
             .catch( error => {
                 logger.warn( error );
                 logger.error( 'MySQL error when checking for records.' );
