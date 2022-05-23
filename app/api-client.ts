@@ -88,7 +88,7 @@ export class ApiClient {
         if ( method === 'get' ) {
             config.headers = { Authorization: 'Bearer ' + this._apiAuthToken };
             result = await axios.get( this._apiUrlPrefix + url, config ).catch( ( error: any ) => {
-                logger.warn( error );
+                logger.warn( error.toString().substring( 0, 255 ) );
                 logger.error( 'Error performing a GET request.' );
                 clearTimeout( timeout );
                 throw new Error();
