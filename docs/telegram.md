@@ -1,4 +1,3 @@
-## **Welcome to the masternode-telegram-watcher wiki!**
 
 * **1.1 Create your Telegram Bot**
 
