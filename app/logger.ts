@@ -8,7 +8,7 @@ dotenv.config();
 
 export const logger = winston.createLogger( {
     name: 'console.logs',
-    level: 'debug',
+    level: process.env.DEBUG_LEVEL,
     format: combine(
         timestamp(),
         splat(),
