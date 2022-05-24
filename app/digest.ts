@@ -210,7 +210,7 @@ export class Digest {
     endingVotesText( ending: any[], voteType: string ): string {
         let text = '';
         if ( ending.length ) {
-            text += ICONS.attention + ` __\*${ ending.length } ${ voteType }* - no quorum:__\n\n`;
+            text += ICONS.attention + ` __\*${ ending.length } ${ voteType }* \- no quorum:__\n\n`;
             for ( const vote of ending ) {
                 text += this.voteToText( vote );
             }
