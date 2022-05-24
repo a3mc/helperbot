@@ -95,7 +95,7 @@ export class ApiClient {
             } );
         } else {
             result = await axios.post( this._apiUrlPrefix + url, data, config ).catch( ( error: any ) => {
-                logger.warn( error );
+                logger.warn( error.toString().substring( 0, 255 ) );
                 logger.error( 'Error performing a POST request.' );
                 clearTimeout( timeout );
                 throw new Error();
