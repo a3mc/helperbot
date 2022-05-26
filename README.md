@@ -39,6 +39,8 @@ $ npm run migrate
 $ npm test
 ```
 
+Please keep in mind that tests are targeted on the default values provided in the `example.env`.
+
 6. To start the bot in the background in production mode, set it up with:
 ```shell
 $ npm run start:pm2
