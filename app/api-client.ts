@@ -64,7 +64,7 @@ export class ApiClient {
         const result = await this.requestWrapper( 'get', 'shared/global-settings' );
         if ( result.data && result.data.success && result.data.settings ) {
             this.quorumRate = parseInt( result.data.settings.quorum_rate );
-            this.quorumRateMilestone = parseInt( result.data.settings.quorum_rate_milestone );
+            this.quorumRateMilestone = parseInt( result.data.settings.quorum_rate_milestone ) ;
             this.quorumRateSimple = parseInt( result.data.settings.quorum_rate_simple );
         } else {
             logger.error( 'Error getting Settings.' );

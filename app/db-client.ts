@@ -36,8 +36,9 @@ export class DbClient {
             date = dateMoment.add( -Number( process.env.POST_RETRY_TIME ), 'minutes' )
                 .format( 'YYYY-MM-DD HH:mm:ss' );
         } else if ( type === POST_TYPES.active_simple ) {
-            // List of simple votes is posted again in 12h. We add some extra to prevent possible duplication.
-            date = dateMoment.add( -12, 'hours' ).add( - Number( process.env.POST_RETRY_TIME ), 'minutes' )
+
+            // List of simple votes is posted again in 12h.
+            date = dateMoment.add( -13, 'hours' )
                 .format( 'YYYY-MM-DD HH:mm:ss' );
         }
 
