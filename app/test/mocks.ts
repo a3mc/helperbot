@@ -9,6 +9,7 @@ export const NewSimpleVotesMock = [
         timeLeft: '23:59:00',
         rate: 52.2,
         total_user_va: 40,
+        type: 'informal',
     },
     {
         id: 2000002,
@@ -20,11 +21,13 @@ export const NewSimpleVotesMock = [
         timeLeft: '23:55:00',
         rate: 66.2,
         total_user_va: 40,
+        type: 'informal',
     },
     {
         id: 2000003,
         proposalId: 1000003,
         content_type: 'simple',
+        type: 'formal',
         result_count: 1,
         updated_at: '2022-05-20T08:05:06.000000Z',
         title: 'Simple proposal 3 in Formal',

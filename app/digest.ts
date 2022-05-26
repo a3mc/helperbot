@@ -131,13 +131,12 @@ export class Digest {
         let text = '';
         const simple = votes.filter( vote => vote.content_type === 'simple' );
         if ( simple.length ) {
-            const multiple = simple.length > 1;
             if ( newVote ) {
-                text += ICONS.new_simple + ` __\*${ simple.length } new SIMPLE* ` +
-                    `just entered \_${ voteType }_:__\n\n`;
+                text += ICONS[voteType] + ` __\*${ simple.length } new SIMPLE* ` +
+                    `just entered \_${ voteType.toUpperCase() }_:__\n\n`;
             } else {
-                text += ICONS.simple + ` __\*${ simple.length } ${ voteType } SIMPLE* ` +
-                    `require${ multiple ? '' : 's' } attention:__\n\n`;
+                text += `${ ICONS[voteType] } __\*${ simple.length } SIMPLE* in` +
+                    ` ${ voteType.toUpperCase() }__\n\n`;
             }
             for ( const vote of simple ) {
                 text += this.voteToText( vote );
@@ -149,7 +148,7 @@ export class Digest {
     failedNoQuorumText( votes: any[] ): string {
         let text = '';
         if ( votes.length ) {
-            text += ICONS.no_quorum + ` __\*${ votes.length } failed without no quorum:*__\n\n`;
+            text += ICONS.no_quorum + ` __\*${ votes.length } failed without a quorum:*__\n\n`;
             for ( const vote of votes ) {
                 text += this.voteToText( vote, false );
             }
@@ -210,7 +209,8 @@ export class Digest {
     endingVotesText( ending: any[], voteType: string ): string {
         let text = '';
         if ( ending.length ) {
-            text += ICONS.attention + ` __\*${ ending.length } ${ voteType }* \\- no quorum:__\n\n`;
+            text += ICONS[voteType] + ` ${ ending.length } in __ ${ voteType.toUpperCase() }` +
+                ` \*\\- no quorum:*__\n\n`;
             for ( const vote of ending ) {
                 text += this.voteToText( vote );
             }
@@ -222,10 +222,11 @@ export class Digest {
         const title = '"' + this.escapeText( vote.title ) + '"';
         const contentType = this.escapeText( vote.content_type );
         const link = process.env.PORTAL_URL_PREFIX + process.env.PROPOSAL_URL + vote.proposalId;
+        const totalUsers = vote.type === 'informal' ? this.apiClient.totalMembers : vote.total_member;
 
         return `[\\#${ vote.proposalId }](${ link }) \_${ contentType }_: ${ title }` +
             ( full ? (
-                `\n\\(\_${ vote.result_count }/${ vote.total_member || vote.total_user_va } voted_\\. ` +
+                `\n\\(\_${ vote.result_count }/${ totalUsers } voted_\\. ` +
                 `\_Time left: ` + this.timeLeftToHM( vote.timeLeft ) + `_\\)`
             ) : '' ) + '\n\n';
     }

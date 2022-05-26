@@ -1,11 +1,14 @@
 export const ICONS = {
     dead: '☠️',
     ending: '⏳',
-    interest: '📣',
-    attention: '‼️',
-    simple: '💚',
-    new_simple: '⭐️',
-    no_quorum: '🙈',
+    interest: '👀',
+    attention: '⚠',
+    simple: '🕓',
+    new_simple: '📩',
+    no_quorum: '🔥',
+    informal: '🟦',
+    formal: '🟩',
+    digest: '📋',
 };
 
 export const POST_TYPES = {

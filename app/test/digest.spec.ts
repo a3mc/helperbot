@@ -122,12 +122,7 @@ describe( 'Digest', () => {
             expect( await digest.newSimple() ).deep.equal( {
                 informalIds: [2000001, 2000002],
                 formalIds: [2000003],
-                text: `⭐️ __*2 new SIMPLE* just entered _informal_:__\n\n[\\#1000001](https://portal.devxdao.com/app/` +
-                    `proposal/1000001) _simple_: \"Simple proposal 1\"\n\\(_0/40 voted_\\. _Time left: 23h 59m_\\)` +
-                    `\n\n[\\#1000002](https://portal.devxdao.com/app/proposal/1000002) _simple_: \"Simple proposal 2` +
-                    `\"\n\\(_0/40 voted_\\. _Time left: 23h 55m_\\)\n\n⭐️ __*1 new SIMPLE* just entered _formal_:__` +
-                    `\n\n[\\#1000003](https://portal.devxdao.com/app/proposal/1000003) _simple_: \"Simple proposal 3`+
-                    ` in Formal\"\n\\(_1/33 voted_\\. _Time left: 23h 55m_\\)\n\n`
+                text: `🟦 __*2 new SIMPLE* just entered _INFORMAL_:__\n\n[\\#1000001](https://portal.devxdao.com/app/proposal/1000001) _simple_: \"Simple proposal 1\"\n\\(_0/40 voted_\\. _Time left: 23h 59m_\\)\n\n[\\#1000002](https://portal.devxdao.com/app/proposal/1000002) _simple_: \"Simple proposal 2\"\n\\(_0/40 voted_\\. _Time left: 23h 55m_\\)\n\n🟩 __*1 new SIMPLE* just entered _FORMAL_:__\n\n[\\#1000003](https://portal.devxdao.com/app/proposal/1000003) _simple_: \"Simple proposal 3 in Formal\"\n\\(_1/33 voted_\\. _Time left: 23h 55m_\\)\n\n`
             } );
         } );
 
@@ -142,7 +137,7 @@ describe( 'Digest', () => {
         it( 'should return correct "New Failed - No Quorum" object', async () => {
             expect( await digest.newFailedNoQuorum() ).deep.equal( {
                 votesIds: [5000001],
-                text: `🙈 __*1 failed without no quorum:*__\n\n[\\#6000001](https://portal.devxdao.com/app/` +
+                text: `🔥 __*1 failed without a quorum:*__\n\n[\\#6000001](https://portal.devxdao.com/app/` +
                     `proposal/6000001) _simple_: \"Completed failed with no quorum\"\n\n`
             } );
         } );
