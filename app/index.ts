@@ -31,8 +31,10 @@ async function checkLoop(): Promise<void> {
 
         // Always list Simple votes after the digest.
         await simpleListPost();
-    } else {
-        // Post simple votes list again in 13h after the last post.
+    }
+
+    if ( await checkForDailyDigestTime( true ) ) {
+        // Post simple votes list again in 12h after the last post.
         if ( !await dbClient.checkLastPost( POST_TYPES.active_simple ) ) {
             await simpleListPost();
         }
@@ -149,11 +151,15 @@ async function postMessage(
 }
 
 // Check the schedule if it's a correct time to make a post.
-async function checkForDailyDigestTime(): Promise<boolean> {
-    const digestTime = moment().utc()
+async function checkForDailyDigestTime( simple = false ): Promise<boolean> {
+    let digestTime = moment().utc()
         .hours( Number( process.env.DIGEST_TIME_H ) )
         .minutes( Number( process.env.DIGEST_TIME_M ) )
         .seconds( 0 );
+
+    if ( simple ) {
+        digestTime = digestTime.add( '12', 'hours' );
+    }
 
     if (
         moment().utc().isSameOrAfter( digestTime ) &&
@@ -164,7 +170,12 @@ async function checkForDailyDigestTime(): Promise<boolean> {
             // Digest has been already posted, skipping.
             return false;
         }
-        logger.info( 'Time to post Daily Digest.' )
+        if ( simple ) {
+            logger.info( 'Time to post Simple list.' );
+        } else {
+            logger.info( 'Time to post Daily Digest and Simple list.' );
+        }
+
     } else {
         // Not the right time to post digest.
         return false;
