@@ -11,38 +11,46 @@ export class Digest {
         const informal = await this.informalVotes();
         const formal = await this.formalVotes();
         const discussions = await this.discussions();
+        const completed = ( await this.completedVotes() ).filter(
+            vote => moment( vote.updated_at ).utc().isAfter( moment().utc().add( -24, 'hours') )
+        );
 
         return [
             this.endingVotesText( this.endingSoon( informal ), 'informal' ),
             this.endingVotesText( this.endingSoon( formal ), 'formal' ),
+            this.recentlyCompletedText( completed ),
             this.discussionsText( discussions ),
         ].join( '' );
     }
 
-    async listSimple(): Promise<any> {
-        const informal = await this.informalVotes();
-        const formal = await this.formalVotes();
+    async listSimpleAdmin(): Promise<any> {
+        const informal = ( await this.informalVotes() ).filter(
+            vote => vote.content_type === 'simple' || vote.content_type === 'admin-grant'
+        );
+        const formal = ( await this.formalVotes() ).filter(
+            vote => vote.content_type === 'simple' || vote.content_type === 'admin-grant'
+        );
 
         return [
-            this.simpleVotesText( informal, 'informal' ),
-            this.simpleVotesText( formal, 'formal' ),
+            this.simpleAdminVotesText( informal, 'informal' ),
+            this.simpleAdminVotesText( formal, 'formal' ),
         ].join( '' );
     }
 
-    async newSimple(): Promise<any> {
-        const informal = ( await this.informalVotes() ).filter( vote => vote.content_type === 'simple' );
-        const formal = ( await this.formalVotes() ).filter( vote => vote.content_type === 'simple' );
+    async newProposal(): Promise<any> {
+        const informal = ( await this.informalVotes() );
+        const formal = ( await this.formalVotes() );
         let newInformal = [];
         let newFormal = [];
 
         // Check if posts for the votes were already made.
         for ( const vote of informal ) {
-            if ( !await this.dbClient.checkSimplePost( vote.id, VOTE_TYPES.informal ) ) {
+            if ( !await this.dbClient.checkPost( vote.id, VOTE_TYPES.informal ) ) {
                 newInformal.push( vote );
             }
         }
         for ( const vote of formal ) {
-            if ( !await this.dbClient.checkSimplePost( vote.id, VOTE_TYPES.formal ) ) {
+            if ( !await this.dbClient.checkPost( vote.id, VOTE_TYPES.formal ) ) {
                 newFormal.push( vote );
             }
         }
@@ -51,18 +59,18 @@ export class Digest {
             informalIds: newInformal.map( vote => vote.id ),
             formalIds: newFormal.map( vote => vote.id ),
             text: [
-                this.simpleVotesText( newInformal, 'informal', true ),
-                this.simpleVotesText( newFormal, 'formal', true ),
+                this.simpleAdminVotesText( newInformal, 'informal', true ),
+                this.simpleAdminVotesText( newFormal, 'formal', true ),
             ].join( '' )
         }
     }
 
-    async expiringSimpleNoQuorum(): Promise<any> {
+    async expiringSimpleAdminNoQuorum(): Promise<any> {
         const informal = this.endingSoon( ( await this.informalVotes() ).filter(
-            vote => vote.content_type === 'simple'
+            vote => vote.content_type === 'simple' || vote.content_type === 'admin-grant'
         ), process.env.SIMPLE_NO_QUORUM_ALERT );
         const formal = this.endingSoon( ( await this.formalVotes() ).filter(
-            vote => vote.content_type === 'simple'
+            vote => vote.content_type === 'simple' || vote.content_type === 'admin-grant'
         ), process.env.SIMPLE_NO_QUORUM_ALERT );
 
         let newInformal = [];
@@ -70,12 +78,12 @@ export class Digest {
 
         // Check if posts for the votes were already made.
         for ( const vote of informal ) {
-            if ( !await this.dbClient.checkSimplePost( vote.id, VOTE_TYPES.informal, POST_TYPES.expiring_simple ) ) {
+            if ( !await this.dbClient.checkPost( vote.id, VOTE_TYPES.informal, POST_TYPES.expiring_simple ) ) {
                 newInformal.push( vote );
             }
         }
         for ( const vote of formal ) {
-            if ( !await this.dbClient.checkSimplePost( vote.id, VOTE_TYPES.formal, POST_TYPES.expiring_simple ) ) {
+            if ( !await this.dbClient.checkPost( vote.id, VOTE_TYPES.formal, POST_TYPES.expiring_simple ) ) {
                 newFormal.push( vote );
             }
         }
@@ -127,19 +135,29 @@ export class Digest {
         return result.proposals;
     }
 
-    simpleVotesText( votes: any[], voteType: string, newVote = false ): string {
+    simpleAdminVotesText( votes: any[], voteType: string, newVote = false ): string {
         let text = '';
-        const simple = votes.filter( vote => vote.content_type === 'simple' );
-        if ( simple.length ) {
+        if ( votes.length ) {
             if ( newVote ) {
-                text += ICONS[voteType] + ` __\*${ simple.length } new SIMPLE* ` +
+                text += ICONS[voteType] + ` __\*${ votes.length } new proposal* ` +
                     `just entered \_${ voteType.toUpperCase() }_:__\n\n`;
             } else {
-                text += `${ ICONS[voteType] } __\*${ simple.length } SIMPLE* in` +
+                text += `${ ICONS[voteType] } __\*${ votes.length }* in` +
                     ` ${ voteType.toUpperCase() }__\n\n`;
             }
-            for ( const vote of simple ) {
+            for ( const vote of votes ) {
                 text += this.voteToText( vote );
+            }
+        }
+        return text;
+    }
+
+    recentlyCompletedText( votes: any[] ): string {
+        let text = '';
+        if ( votes.length ) {
+            text = ICONS.completed + ' __Recently completed__\n\n';
+            for ( const vote of votes ) {
+                text += this.voteToText( vote, false, true );
             }
         }
         return text;
@@ -218,7 +236,7 @@ export class Digest {
         return text;
     }
 
-    voteToText( vote: any, full = true ): string {
+    voteToText( vote: any, full = true, result = false ): string {
         const title = '"' + this.escapeText( vote.title ) + '"';
         const contentType = this.escapeText( vote.content_type );
         const link = process.env.PORTAL_URL_PREFIX + process.env.PROPOSAL_URL + vote.proposalId;
@@ -228,7 +246,9 @@ export class Digest {
             ( full ? (
                 `\n\\(\_${ vote.result_count }/${ totalUsers } voted_\\. ` +
                 `\_Time left: ` + this.timeLeftToHM( vote.timeLeft ) + `_\\)`
-            ) : '' ) + '\n\n';
+            ) : '' ) +
+            ( result ? ': \*' + vote.result.toUpperCase() + '* \_' + vote.type + '_' : '' )
+            + '\n\n';
     }
 
     discussionToText( discussion: any, icon: string = '' ): string {
@@ -260,7 +280,7 @@ export class Digest {
             let quorumRate: number;
             if ( vote.content_type === 'milestone' ) {
                 quorumRate = this.apiClient.quorumRateMilestone;
-            } else if ( vote.content_type === 'grant' ) {
+            } else if ( vote.content_type === 'grant' ||  vote.content_type === 'admin-grant' ) {
                 quorumRate = this.apiClient.quorumRate;
             } else if ( vote.content_type === 'simple' ) {
                 quorumRate = this.apiClient.quorumRateSimple;
