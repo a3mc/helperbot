@@ -218,7 +218,7 @@ export class Digest {
         return text;
     }
 
-    voteToText( vote: any, full = true ): string {
+    voteToText( vote: any, full = true, result = false ): string {
         const title = '"' + this.escapeText( vote.title ) + '"';
         const contentType = this.escapeText( vote.content_type );
         const link = process.env.PORTAL_URL_PREFIX + process.env.PROPOSAL_URL + vote.proposalId;
@@ -228,7 +228,9 @@ export class Digest {
             ( full ? (
                 `\n\\(\_${ vote.result_count }/${ totalUsers } voted_\\. ` +
                 `\_Time left: ` + this.timeLeftToHM( vote.timeLeft ) + `_\\)`
-            ) : '' ) + '\n\n';
+            ) : '' ) +
+            ( result ? ': \*' + vote.result.toUpperCase() + '* \_' + vote.type + '_' : '' ) +
+            '\n\n';
     }
 
     discussionToText( discussion: any, icon: string = '' ): string {

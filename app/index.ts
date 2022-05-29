@@ -5,10 +5,11 @@ import { DbClient } from './db-client';
 import moment from 'moment';
 import { logger } from './logger';
 import { ICONS, POST_TYPES, VOTE_TYPES } from './constants';
+import { Interact } from "./interact";
 
 dotenv.config();
 
-const bot = new Telegraf( process.env.BOT_TOKEN )
+const bot = new Telegraf( process.env.BOT_TOKEN );
 const digest = new Digest();
 const dbClient = new DbClient();
 
@@ -183,9 +184,13 @@ async function checkForDailyDigestTime( simple = false ): Promise<boolean> {
     return true;
 }
 
+// Handle interactive part.
+new Interact( bot, digest );
+
 // Launch the bot.
 bot.launch().then( async () => {
     logger.info( 'Bot started successfully.' );
+
     await checkLoop()
         .catch( error => {
             logger.error( error );

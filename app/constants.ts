@@ -9,6 +9,8 @@ export const ICONS = {
     informal: '🟦',
     formal: '🟩',
     digest: '📋',
+    discussions: '☎️',
+    completed: '✅',
 };
 
 export const POST_TYPES = {
