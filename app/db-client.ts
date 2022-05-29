@@ -14,7 +14,7 @@ export class DbClient {
     } );
     protected query = util.promisify( this.pool.query ).bind( this.pool );
 
-    async post( type: number, result: number, proposalId= 0, voteType = 0  ): Promise<void> {
+    async post( type: number, result: number, proposalId = 0, voteType = 0 ): Promise<void> {
         const query = 'INSERT INTO posts (type, date, result, proposal_id, vote_type) VALUES (?, ?, ?, ?, ?)';
         await this.query(
             query,
@@ -53,7 +53,7 @@ export class DbClient {
         return !!result.length;
     }
 
-    async checkSimplePost(
+    async checkPost(
         proposalId: number,
         voteType: number,
         postType = POST_TYPES.new_simple,

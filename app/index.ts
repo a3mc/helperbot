@@ -16,8 +16,8 @@ const dbClient = new DbClient();
 async function checkLoop(): Promise<void> {
     logger.debug( 'New check cycle.' );
 
-    // Post immediately about a new simple entering informal or formal voting.
-    await newSimplePost();
+    // Post immediately about entering informal or formal voting.
+    await newProposalPost();
 
     // Post immediately about completed votes failed because of no-quorum.
     await failedListPost();
@@ -29,14 +29,14 @@ async function checkLoop(): Promise<void> {
     if ( await checkForDailyDigestTime() ) {
         await digestPost();
 
-        // Always list Simple votes after the digest.
-        await simpleListPost();
+        // Always list Simple/Admin votes after the digest.
+        await simpleAdminListPost();
     }
 
     if ( await checkForDailyDigestTime( true ) ) {
-        // Post simple votes list again in 12h after the last post.
+        // Post simple/admin votes list again in 12h after the last post.
         if ( !await dbClient.checkLastPost( POST_TYPES.active_simple ) ) {
-            await simpleListPost();
+            await simpleAdminListPost();
         }
     }
 }
@@ -49,18 +49,18 @@ async function digestPost(): Promise<void> {
     }
 }
 
-async function simpleListPost(): Promise<void> {
-    let simpleListText = await digest.listSimple();
-    if ( simpleListText.length ) {
-        simpleListText = ICONS.simple + ' \*Active Simple* \_\\(twice daily\\)_\n\n' + simpleListText;
-        await postMessage( simpleListText, POST_TYPES.active_simple );
+async function simpleAdminListPost(): Promise<void> {
+    let votesListText = await digest.listSimpleAdmin();
+    if ( votesListText.length ) {
+        votesListText = ICONS.simple + ' \*Active Simple/Admin*\n\n' + votesListText;
+        await postMessage( votesListText, POST_TYPES.active_simple );
     }
 }
 
 async function noQuorumListPost(): Promise<void> {
-    const expiringSimple = await digest.expiringSimpleNoQuorum();
+    const expiringSimple = await digest.expiringSimpleAdminNoQuorum();
     if ( expiringSimple.text.length ) {
-        logger.info( 'Expiring simple votes with no quorum.' );
+        logger.info( 'Expiring simple/admin votes with no quorum.' );
         await postMessage(
             expiringSimple.text,
             POST_TYPES.expiring_simple,
@@ -81,16 +81,16 @@ async function failedListPost(): Promise<void> {
     }
 }
 
-async function newSimplePost(): Promise<void> {
-    const newSimpleVotes = await digest.newSimple();
-    if ( newSimpleVotes.text.length ) {
-        // Check if there was already a post about each new simple vote.
-        logger.info( 'New simple votes' );
+async function newProposalPost(): Promise<void> {
+    const newVotes = await digest.newProposal();
+    if ( newVotes.text.length ) {
+        // Check if there was already a post about each new proposal.
+        logger.info( 'New votes moved to informal or formal' );
         await postMessage(
-            newSimpleVotes.text,
+            newVotes.text,
             POST_TYPES.new_simple,
-            newSimpleVotes.informalIds,
-            newSimpleVotes.formalIds
+            newVotes.informalIds,
+            newVotes.formalIds
         );
     }
 }
