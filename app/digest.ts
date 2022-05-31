@@ -4,7 +4,7 @@ import { DbClient } from './db-client';
 import { ICONS, POST_TYPES, VOTE_TYPES } from './constants';
 
 export class Digest {
-    protected apiClient = new ApiClient();
+    public apiClient = new ApiClient();
     protected dbClient = new DbClient();
 
     async createDigest(): Promise<any> {

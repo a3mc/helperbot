@@ -11,6 +11,8 @@ export const ICONS = {
     digest: '📋',
     discussions: '☎️',
     completed: '✅',
+    home: '🏠',
+    proposal: '📝',
 };
 
 export const POST_TYPES = {
