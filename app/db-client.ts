@@ -38,7 +38,7 @@ export class DbClient {
         } else if ( type === POST_TYPES.active_simple ) {
 
             // List of simple votes is posted again in 12h.
-            date = dateMoment.add( -13, 'hours' )
+            date = dateMoment.add( -12, 'hours' )
                 .format( 'YYYY-MM-DD HH:mm:ss' );
         }
 
