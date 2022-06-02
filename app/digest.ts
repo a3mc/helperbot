@@ -12,7 +12,7 @@ export class Digest {
         const formal = await this.formalVotes();
         const discussions = await this.discussions();
         const completed = ( await this.completedVotes() ).filter(
-            vote => moment( vote.updated_at ).utc().isAfter( moment().utc().add( -24, 'hours') )
+            vote => moment( vote.updated_at ).utc().isAfter( moment().utc().add( -24, 'hours' ) )
         );
 
         return [
@@ -146,7 +146,7 @@ export class Digest {
                     ` ${ voteType.toUpperCase() }__\n\n`;
             }
             for ( const vote of votes ) {
-                text += this.voteToText( vote );
+                text += this.voteToText( vote, !newVote, false, true );
             }
         }
         return text;
@@ -177,6 +177,27 @@ export class Digest {
     discussionsText( discussions: any[] ): string {
         let text = '';
 
+        // These discussions have high attestation rate and may require attention.
+        const interestingDiscussions = discussions.filter(
+            discussion =>
+                moment( discussion.approved_at ).utc().isAfter( moment().utc().add( -90, 'days' ) ) &&
+                Number( discussion.attestation.rate ) >= Number( process.env.ATTESTATION_INTEREST ) &&
+                discussion.attestation.rate < 51
+        ).sort( ( a: any, b: any ) => {
+            if ( a.attestation.rate > b.attestation.rate ) return -1;
+            if ( a.attestation.rate < b.attestation.rate ) return 1;
+            return 0;
+        } );
+        if ( interestingDiscussions.length ) {
+            const multiple = interestingDiscussions.length > 1;
+            text += ICONS.interest + ` __\*${ interestingDiscussions.length } ` +
+                `discussion${ multiple ? 's' : '' }* require attention:__\n\n`;
+
+            for ( const discussion of interestingDiscussions ) {
+                text += this.discussionToText( discussion );
+            }
+        }
+
         // These discussions have less than 1 week before the 90-days limit hits.
         const endingDiscussions = discussions.filter(
             discussion =>
@@ -191,22 +212,6 @@ export class Digest {
                 `${ multiple ? 'are' : 'is' } ending within ${ process.env.ENDING_DAYS } days:__\n\n`;
 
             for ( const discussion of endingDiscussions ) {
-                text += this.discussionToText( discussion );
-            }
-        }
-
-        // These discussions have high attestation rate and may require attention.
-        const interestingDiscussions = discussions.filter(
-            discussion =>
-                moment( discussion.approved_at ).utc().isAfter( moment().utc().add( -90, 'days' ) ) &&
-                Number( discussion.attestation.rate ) >= Number( process.env.ATTESTATION_INTEREST )
-        );
-        if ( interestingDiscussions.length ) {
-            const multiple = interestingDiscussions.length > 1;
-            text += ICONS.interest + ` __\*${ interestingDiscussions.length } ` +
-                `discussion${ multiple ? 's' : '' }* require attention:__\n\n`;
-
-            for ( const discussion of interestingDiscussions ) {
                 text += this.discussionToText( discussion );
             }
         }
@@ -236,22 +241,37 @@ export class Digest {
         return text;
     }
 
-    voteToText( vote: any, full = true, result = false ): string {
+    voteToText( vote: any, full = true, result = false, isNew = false ): string {
         const title = '"' + this.escapeText( vote.title ) + '"';
         const contentType = this.escapeText( vote.content_type );
         const link = process.env.PORTAL_URL_PREFIX + process.env.PROPOSAL_URL + vote.proposalId;
         const totalUsers = vote.type === 'informal' ? this.apiClient.totalMembers : vote.total_member;
 
-        return `[\\#${ vote.proposalId }](${ link }) \_${ contentType }_: ${ title }` +
-            ( full ? (
-                `\n\\(\_${ vote.result_count }/${ totalUsers } voted_\\. ` +
-                `\_Time left: ` + this.timeLeftToHM( vote.timeLeft ) + `_\\)`
-            ) : '' ) +
-            ( result ? ': \*' + vote.result.toUpperCase() + '* \_' + vote.type + '_' : '' )
-            + '\n\n';
+        let text = `[\\#${ vote.proposalId }](${ link }) \_${ contentType }_: ${ title }`;
+
+        if ( full ) {
+            text += `\n\\(\_${ vote.result_count }/${ totalUsers } voted_\\. ` +
+                `\_Time left: ` + this.timeLeftToHM( vote.timeLeft ) + `_\\)`;
+
+        } else if ( isNew ) {
+            const timeLeft = vote.timeLeft.substring( 0, 5 ).split( ':' );
+            const endDate = moment().utc()
+                .add( parseInt( timeLeft[0] ), 'hours' )
+                .add( parseInt( timeLeft[1] ), 'minutes' )
+                .format( 'D MMM HH:mm' );
+
+            text += `\n\\(\_End: ${ this.escapeText( endDate ) } UTC_\\)`;
+        }
+
+        if ( result ) {
+            text += `: \*${ vote.result.toUpperCase() }* \_${ vote.type }_`;
+        }
+
+        text += `\n\n`;
+        return text;
     }
 
-    discussionToText( discussion: any, icon: string = '' ): string {
+    discussionToText( discussion: any ): string {
         const title = '"' + this.escapeText( discussion.title ) + '"';
         const contentType = this.escapeText( discussion.type );
         const link = process.env.PORTAL_URL_PREFIX + process.env.PROPOSAL_URL + discussion.id;
@@ -259,6 +279,12 @@ export class Digest {
             String( Math.round( discussion.attestation.rate * 100 ) / 100 )
         );
         const approvedAt = this.escapeText( discussion.approved_at.substring( 0, 10 ) );
+
+        const votesForQuorum = Math.ceil( 51 / 100 * this.apiClient.totalMembers );
+        const voted = Math.round( discussion.attestation.rate / 100 * this.apiClient.totalMembers );
+        const votesNeeded = votesForQuorum - voted;
+        const icon = votesForQuorum - voted < 3 ? ICONS.alert +
+            ` \*${ votesNeeded } vote${ votesNeeded > 1 ? 's' : '' } needed\\!*\n` : null;
 
         return ( icon ? icon + ' ' : '' ) + `[\\#${ discussion.id }](${ link }) ` +
             `\_${ contentType }_: ${ title }\n` +
@@ -280,7 +306,7 @@ export class Digest {
             let quorumRate: number;
             if ( vote.content_type === 'milestone' ) {
                 quorumRate = this.apiClient.quorumRateMilestone;
-            } else if ( vote.content_type === 'grant' ||  vote.content_type === 'admin-grant' ) {
+            } else if ( vote.content_type === 'grant' || vote.content_type === 'admin-grant' ) {
                 quorumRate = this.apiClient.quorumRate;
             } else if ( vote.content_type === 'simple' ) {
                 quorumRate = this.apiClient.quorumRateSimple;
