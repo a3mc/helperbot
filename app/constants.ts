@@ -10,6 +10,7 @@ export const ICONS = {
     formal: '🟩',
     digest: '📋',
     completed: '✅',
+    alert: '📣',
 };
 
 export const POST_TYPES = {
