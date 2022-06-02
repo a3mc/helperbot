@@ -280,8 +280,8 @@ export class Digest {
         );
         const approvedAt = this.escapeText( discussion.approved_at.substring( 0, 10 ) );
 
-        const votesForQuorum = Math.ceil( 51 / 100 * 40 );
-        const voted = Math.round( discussion.attestation.rate / 100 * 40 );
+        const votesForQuorum = Math.ceil( 51 / 100 * this.apiClient.totalMembers );
+        const voted = Math.round( discussion.attestation.rate / 100 * this.apiClient.totalMembers );
         const votesNeeded = votesForQuorum - voted;
         const icon = votesForQuorum - voted < 3 ? ICONS.alert +
             ` \*${ votesNeeded } vote${ votesNeeded > 1 ? 's' : '' } needed\\!*\n` : null;
