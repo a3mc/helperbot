@@ -119,11 +119,12 @@ describe( 'Digest', () => {
         } );
 
         it( 'should return a correct "New Simples" object', async () => {
-            expect( await digest.newProposal() ).deep.equal( {
-                informalIds: [2000001, 2000002],
-                formalIds: [2000003],
-                text: `🟦 __*2 new proposal* just entered _INFORMAL_:__\n\n[\\#1000001](https://portal.devxdao.com/app/proposal/1000001) _simple_: \"Simple proposal 1\"\n\\(_End: 3 Jun 13:29 UTC_\\)\n\n[\\#1000002](https://portal.devxdao.com/app/proposal/1000002) _simple_: \"Simple proposal 2\"\n\\(_End: 3 Jun 13:25 UTC_\\)\n\n🟩 __*1 new proposal* just entered _FORMAL_:__\n\n[\\#1000003](https://portal.devxdao.com/app/proposal/1000003) _simple_: \"Simple proposal 3 in Formal\"\n\\(_End: 3 Jun 13:25 UTC_\\)\n\n`
-            } );
+            const newProposals = await digest.newProposal();
+            expect( newProposals.informalIds ).deep.equal(
+                [2000001, 2000002]
+            );
+            expect( newProposals.formalIds ).deep.equal( [2000003] );
+            expect( newProposals.text ).contain( `🟦 __*2 new proposal* just entered _INFORMAL_:__\n\n` );
         } );
 
         it( 'should return a "Digest" text containing expected records', async () => {
