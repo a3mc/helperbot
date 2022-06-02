@@ -35,9 +35,7 @@ async function checkLoop(): Promise<void> {
 
     if ( await checkForDailyDigestTime( true ) ) {
         // Post simple/admin votes list again in 12h after the last post.
-        if ( !await dbClient.checkLastPost( POST_TYPES.active_simple ) ) {
-            await simpleAdminListPost();
-        }
+        await simpleAdminListPost();
     }
 }
 
@@ -158,7 +156,8 @@ async function checkForDailyDigestTime( simple = false ): Promise<boolean> {
         .seconds( 0 );
 
     if ( simple ) {
-        digestTime = digestTime.add( '12', 'hours' );
+        // If digest time is set after 12, it becomes the next day, so we subtract 12h then.
+        digestTime = digestTime.add( Number( process.env.DIGEST_TIME_H ) > 12 ? -12 : 12, 'hours' );
     }
 
     if (
@@ -166,7 +165,7 @@ async function checkForDailyDigestTime( simple = false ): Promise<boolean> {
         moment().utc().isBefore( digestTime.clone().add( process.env.POST_RETRY_TIME, 'minutes' ) )
     ) {
         // Retry posting during the defined time window.
-        if ( await dbClient.checkLastPost( POST_TYPES.digest ) ) {
+        if ( await dbClient.checkLastPost( simple ? POST_TYPES.active_simple : POST_TYPES.digest ) ) {
             // Digest has been already posted, skipping.
             return false;
         }
