@@ -146,7 +146,7 @@ export class Digest {
                     ` ${ voteType.toUpperCase() }__\n\n`;
             }
             for ( const vote of votes ) {
-                text += this.voteToText( vote );
+                text += this.voteToText( vote, !newVote, false, true );
             }
         }
         return text;
@@ -236,19 +236,34 @@ export class Digest {
         return text;
     }
 
-    voteToText( vote: any, full = true, result = false ): string {
+    voteToText( vote: any, full = true, result = false, isNew = false ): string {
         const title = '"' + this.escapeText( vote.title ) + '"';
         const contentType = this.escapeText( vote.content_type );
         const link = process.env.PORTAL_URL_PREFIX + process.env.PROPOSAL_URL + vote.proposalId;
         const totalUsers = vote.type === 'informal' ? this.apiClient.totalMembers : vote.total_member;
 
-        return `[\\#${ vote.proposalId }](${ link }) \_${ contentType }_: ${ title }` +
-            ( full ? (
-                `\n\\(\_${ vote.result_count }/${ totalUsers } voted_\\. ` +
-                `\_Time left: ` + this.timeLeftToHM( vote.timeLeft ) + `_\\)`
-            ) : '' ) +
-            ( result ? ': \*' + vote.result.toUpperCase() + '* \_' + vote.type + '_' : '' )
-            + '\n\n';
+        let text = `[\\#${ vote.proposalId }](${ link }) \_${ contentType }_: ${ title }`;
+
+        if ( full ) {
+            text +=  `\n\\(\_${ vote.result_count }/${ totalUsers } voted_\\. ` +
+                `\_Time left: ` + this.timeLeftToHM( vote.timeLeft ) + `_\\)`;
+
+        } else if ( isNew ) {
+            const timeLeft = vote.timeLeft.substring( 0, 5 ).split( ':' );
+            const endDate = moment().utc()
+                .add( parseInt( timeLeft[0] ), 'hours' )
+                .add( parseInt( timeLeft[1] ), 'minutes' )
+                .format( 'D MMM HH:mm');
+
+            text += `\n\\(\_End: ${ this.escapeText( endDate ) } UTC_\\)`;
+        }
+
+        if ( result ) {
+            text += `: \*${ vote.result.toUpperCase() }* \_${ vote.type }_`;
+        }
+
+        text += `\n\n`;
+        return text;
     }
 
     discussionToText( discussion: any, icon: string = '' ): string {
