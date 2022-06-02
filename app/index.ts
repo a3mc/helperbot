@@ -62,7 +62,8 @@ async function noQuorumListPost(): Promise<void> {
         await postMessage(
             expiringSimple.text,
             POST_TYPES.expiring_simple,
-            expiringSimple.votesIds,
+            expiringSimple.informalIds,
+            expiringSimple.formalIds,
         );
     }
 }
@@ -134,6 +135,9 @@ async function postMessage(
         } else if ( type === POST_TYPES.failed_no_quorum || type === POST_TYPES.expiring_simple ) {
             // Save ids of failed no-quorum votes.
             for ( const id of informalIds ) {
+                await dbClient.post( type, 1, id );
+            }
+            for ( const id of formalIds ) {
                 await dbClient.post( type, 1, id );
             }
         } else {
