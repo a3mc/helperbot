@@ -36,7 +36,9 @@ export class DbClient {
             date = dateMoment.add( -Number( process.env.POST_RETRY_TIME ), 'minutes' )
                 .format( 'YYYY-MM-DD HH:mm:ss' );
         } else if ( type === POST_TYPES.active_simple ) {
-
+            // This post type maybe required later, but currently is commented out in the index.ts file,
+            // until the further decision id the extra post makes sense.
+            
             // List of simple votes is posted again in 12h.
             date = dateMoment.add( -12, 'hours' )
                 .format( 'YYYY-MM-DD HH:mm:ss' );

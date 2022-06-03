@@ -33,10 +33,13 @@ async function checkLoop(): Promise<void> {
         await simpleAdminListPost();
     }
 
-    if ( await checkForDailyDigestTime( true ) ) {
+    // Temporarily commented out an extra post about active simple, until decided that it makes sense.
+    // As we already post about each new formal and informal start, it looks a bit duplicated in the channel.
+
+    //if ( await checkForDailyDigestTime( true ) ) {
         // Post simple/admin votes list again in 12h after the last post.
-        await simpleAdminListPost();
-    }
+        //await simpleAdminListPost();
+    //}
 }
 
 async function digestPost(): Promise<void> {

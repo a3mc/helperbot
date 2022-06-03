@@ -58,7 +58,7 @@ $ pm2 reload all
 
 ### How The Bot Works
 
-The Bot signs in to the DevDao portal and collects information about votes and proposals. It posts a daily digest once a day. If there are some active simple votes it will also make an additional post in 12h after the digest. In some cases it may make extra posts when addition attention is required, for example, when a new Simple enters Informal or Formal voting.
+The Bot signs in to the DevDao portal and collects information about votes and proposals. It posts a daily digest once a day. In some cases it may make extra posts when addition attention is required, for example, when a new proposal enters Informal or Formal voting.
 
 The Digest may include the following:
 
