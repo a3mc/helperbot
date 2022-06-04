@@ -284,7 +284,7 @@ export class Digest {
         const voted = Math.round( discussion.attestation.rate / 100 * this.apiClient.totalMembers );
         const votesNeeded = votesForQuorum - voted;
         const icon = votesForQuorum - voted < 3 ? ICONS.alert +
-            ` \*${ votesNeeded } vote${ votesNeeded > 1 ? 's' : '' } needed\\!*\n` : null;
+            ` \*${ votesNeeded } attestation${ votesNeeded > 1 ? 's' : '' } needed\\!*\n` : null;
 
         return ( icon ? icon + ' ' : '' ) + `[\\#${ discussion.id }](${ link }) ` +
             `\_${ contentType }_: ${ title }\n` +
