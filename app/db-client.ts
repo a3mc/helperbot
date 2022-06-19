@@ -14,7 +14,7 @@ export class DbClient {
     } );
     protected query = util.promisify( this.pool.query ).bind( this.pool );
 
-    async post( type: number, result: number, proposalId= 0, voteType = 0  ): Promise<void> {
+    async post( type: number, result: number, proposalId = 0, voteType = 0 ): Promise<void> {
         const query = 'INSERT INTO posts (type, date, result, proposal_id, vote_type) VALUES (?, ?, ?, ?, ?)';
         await this.query(
             query,
@@ -36,9 +36,11 @@ export class DbClient {
             date = dateMoment.add( -Number( process.env.POST_RETRY_TIME ), 'minutes' )
                 .format( 'YYYY-MM-DD HH:mm:ss' );
         } else if ( type === POST_TYPES.active_simple ) {
+            // This post type maybe required later, but currently is commented out in the index.ts file,
+            // until the further decision is made if this extra post makes sense.
 
             // List of simple votes is posted again in 12h.
-            date = dateMoment.add( -13, 'hours' )
+            date = dateMoment.add( -12, 'hours' )
                 .format( 'YYYY-MM-DD HH:mm:ss' );
         }
 
@@ -53,7 +55,7 @@ export class DbClient {
         return !!result.length;
     }
 
-    async checkSimplePost(
+    async checkPost(
         proposalId: number,
         voteType: number,
         postType = POST_TYPES.new_simple,

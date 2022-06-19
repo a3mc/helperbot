@@ -17,8 +17,8 @@ const dbClient = new DbClient();
 async function checkLoop(): Promise<void> {
     logger.debug( 'New check cycle.' );
 
-    // Post immediately about a new simple entering informal or formal voting.
-    await newSimplePost();
+    // Post immediately about entering informal or formal voting.
+    await newProposalPost();
 
     // Post immediately about completed votes failed because of no-quorum.
     await failedListPost();
@@ -30,16 +30,17 @@ async function checkLoop(): Promise<void> {
     if ( await checkForDailyDigestTime() ) {
         await digestPost();
 
-        // Always list Simple votes after the digest.
-        await simpleListPost();
+        // Always list Simple/Admin votes after the digest.
+        await simpleAdminListPost();
     }
 
-    if ( await checkForDailyDigestTime( true ) ) {
-        // Post simple votes list again in 12h after the last post.
-        if ( !await dbClient.checkLastPost( POST_TYPES.active_simple ) ) {
-            await simpleListPost();
-        }
-    }
+    // Temporarily commented out an extra post about active simple, until decided that it makes sense.
+    // As we already post about each new formal and informal start, it looks a bit duplicated in the channel.
+
+    //if ( await checkForDailyDigestTime( true ) ) {
+    // Post simple/admin votes list again in 12h after the last post.
+    //await simpleAdminListPost();
+    //}
 }
 
 async function digestPost(): Promise<void> {
@@ -50,22 +51,23 @@ async function digestPost(): Promise<void> {
     }
 }
 
-async function simpleListPost(): Promise<void> {
-    let simpleListText = await digest.listSimple();
-    if ( simpleListText.length ) {
-        simpleListText = ICONS.simple + ' \*Active Simple* \_\\(twice daily\\)_\n\n' + simpleListText;
-        await postMessage( simpleListText, POST_TYPES.active_simple );
+async function simpleAdminListPost(): Promise<void> {
+    let votesListText = await digest.listSimpleAdmin();
+    if ( votesListText.length ) {
+        votesListText = ICONS.simple + ' \*Active Simple/Admin*\n\n' + votesListText;
+        await postMessage( votesListText, POST_TYPES.active_simple );
     }
 }
 
 async function noQuorumListPost(): Promise<void> {
-    const expiringSimple = await digest.expiringSimpleNoQuorum();
+    const expiringSimple = await digest.expiringSimpleAdminNoQuorum();
     if ( expiringSimple.text.length ) {
-        logger.info( 'Expiring simple votes with no quorum.' );
+        logger.info( 'Expiring simple/admin votes with no quorum.' );
         await postMessage(
             expiringSimple.text,
             POST_TYPES.expiring_simple,
-            expiringSimple.votesIds,
+            expiringSimple.informalIds,
+            expiringSimple.formalIds,
         );
     }
 }
@@ -82,16 +84,16 @@ async function failedListPost(): Promise<void> {
     }
 }
 
-async function newSimplePost(): Promise<void> {
-    const newSimpleVotes = await digest.newSimple();
-    if ( newSimpleVotes.text.length ) {
-        // Check if there was already a post about each new simple vote.
-        logger.info( 'New simple votes' );
+async function newProposalPost(): Promise<void> {
+    const newVotes = await digest.newProposal();
+    if ( newVotes.text.length ) {
+        // Check if there was already a post about each new proposal.
+        logger.info( 'New votes moved to informal or formal' );
         await postMessage(
-            newSimpleVotes.text,
+            newVotes.text,
             POST_TYPES.new_simple,
-            newSimpleVotes.informalIds,
-            newSimpleVotes.formalIds
+            newVotes.informalIds,
+            newVotes.formalIds
         );
     }
 }
@@ -139,6 +141,9 @@ async function postMessage(
             for ( const id of informalIds ) {
                 await dbClient.post( type, 1, id );
             }
+            for ( const id of formalIds ) {
+                await dbClient.post( type, 1, id );
+            }
         } else {
             // Save that digest was posted successfully.
             await dbClient.post( type, 1 );
@@ -159,7 +164,8 @@ async function checkForDailyDigestTime( simple = false ): Promise<boolean> {
         .seconds( 0 );
 
     if ( simple ) {
-        digestTime = digestTime.add( '12', 'hours' );
+        // If digest time is set after 12, it becomes the next day, so we subtract 12h then.
+        digestTime = digestTime.add( Number( process.env.DIGEST_TIME_H ) > 12 ? -12 : 12, 'hours' );
     }
 
     if (
@@ -167,7 +173,7 @@ async function checkForDailyDigestTime( simple = false ): Promise<boolean> {
         moment().utc().isBefore( digestTime.clone().add( process.env.POST_RETRY_TIME, 'minutes' ) )
     ) {
         // Retry posting during the defined time window.
-        if ( await dbClient.checkLastPost( POST_TYPES.digest ) ) {
+        if ( await dbClient.checkLastPost( simple ? POST_TYPES.active_simple : POST_TYPES.digest ) ) {
             // Digest has been already posted, skipping.
             return false;
         }

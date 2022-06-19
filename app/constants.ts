@@ -13,6 +13,8 @@ export const ICONS = {
     completed: '✅',
     home: '🏠',
     proposal: '📝',
+    alert: '📣',
+    settings: '⚙️',
 };
 
 export const POST_TYPES = {

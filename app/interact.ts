@@ -3,6 +3,7 @@ import { Update } from 'typegram';
 import { logger } from './logger';
 import { ICONS } from "./constants";
 import { Digest } from "./digest";
+import moment from "moment";
 
 
 export class Interact {
@@ -16,8 +17,8 @@ export class Interact {
             { text: ICONS.completed + ' Completed' },
             { text: ICONS.discussions + ' Discussions' },
             { text: ICONS.digest + ' Digest' },
-            { text: ICONS.proposal + ' Proposal' },
-            { text: ICONS.attention + ' Alerts' },
+            { text: ICONS.proposal + ' Proposal #' },
+            { text: ICONS.alert + ' My Alerts' },
         ],
         {
             columns: 2,
@@ -41,16 +42,35 @@ export class Interact {
         } );
     }
 
+    async verifyUser( ctx ): Promise<boolean> {
+        const userId = ( await ctx.getChat() ).id;
+        const channelUser = await ctx.telegram.getChatMember( Number( process.env.CHAT_ID ), userId );
+        if ( userId !== channelUser.user.id ) {
+            await ctx.replyWithMarkdown(
+                `Sorry, you don\'t have access to this bot. Please make sure you are a member ` +
+                `of the DxD VAs group Helper Bot channel` );
+            return false;
+        }
+        // Ignore old messages in case of bot reload happened.
+        if ( moment.unix( ctx.message.date ).utc().diff( moment().utc(), 'seconds' ) < -60 ) {
+            logger.warn( 'Message older than 60 seconds detected, ignoring.' );
+            return false;
+        }
+        return true;
+    }
+
     async initHandlers(): Promise<void> {
-        this.bot.start( ( ctx ) => {
+        this.bot.start( async ( ctx ) => {
+            if ( !await this.verifyUser( ctx ) ) return;
             ctx.reply( `Hi ${ ctx.update.message.from.first_name }` );
-            ctx.replyWithMarkdown(
+            await ctx.replyWithMarkdown(
                 'Select an option:',
                 this.mainMenuButtons,
             );
         } );
 
         this.bot.hears( ICONS.informal + ' Informal', async ( ctx ) => {
+            if ( !await this.verifyUser( ctx ) ) return;
             await this.replyOnAction( ctx, async () => {
                 const informal = await this.digest.informalVotes();
                 let text = '__Active Informal__\n\n';
@@ -62,6 +82,7 @@ export class Interact {
         } );
 
         this.bot.hears( ICONS.formal + ' Formal', async ( ctx ) => {
+            if ( !await this.verifyUser( ctx ) ) return;
             await this.replyOnAction( ctx, async () => {
                 const formal = await this.digest.formalVotes();
                 let text = '__Active Formal__\n\n';
@@ -73,6 +94,7 @@ export class Interact {
         } );
 
         this.bot.hears( ICONS.completed + ' Completed', async ( ctx ) => {
+            if ( !await this.verifyUser( ctx ) ) return;
             await this.replyOnAction( ctx, async () => {
                 let text = '__Recently Completed__\n\n';
                 const completed = await this.digest.completedVotes();
@@ -84,6 +106,7 @@ export class Interact {
         } );
 
         this.bot.hears( ICONS.digest + ' Digest', async ( ctx ) => {
+            if ( !await this.verifyUser( ctx ) ) return;
             await this.replyOnAction( ctx, async () => {
                 let text = '__Digest__\n\n';
                 text += await this.digest.createDigest();
@@ -92,6 +115,7 @@ export class Interact {
         } );
 
         this.bot.hears( ICONS.discussions + ' Discussions', async ( ctx ) => {
+            if ( !await this.verifyUser( ctx ) ) return;
             await this.replyOnAction( ctx, async () => {
                 let text = '__Discussions with high attestation rate__\n\n';
                 text += this.digest.discussionsText( await this.digest.discussions() );
@@ -99,32 +123,37 @@ export class Interact {
             } );
         } );
 
-        this.bot.hears( ICONS.attention + ' Alerts', ( ctx ) => {
-            ctx.replyWithMarkdown(
+        this.bot.hears( ICONS.alert + ' My Alerts', async ( ctx ) => {
+            if ( !await this.verifyUser( ctx ) ) return;
+            await ctx.replyWithMarkdown(
                 'Select an option:',
                 this.alertsButtons,
             );
         } );
 
-        this.bot.hears( ICONS.proposal + ' Proposal', ( ctx ) => {
-            ctx.reply( 'Enter the proposal number for the preview:' );
+        this.bot.hears( ICONS.proposal + ' Proposal #', async ( ctx ) => {
+            if ( !await this.verifyUser( ctx ) ) return;
+            await ctx.reply( 'Enter the proposal number for the preview:' );
             this.waitingForProposalPreviewNumber = true;
         } );
 
-        this.bot.hears( ICONS.home + ' Main Menu', ( ctx ) => {
-            ctx.replyWithMarkdown(
+        this.bot.hears( ICONS.home + ' Main Menu', async ( ctx ) => {
+            if ( !await this.verifyUser( ctx ) ) return;
+            await ctx.replyWithMarkdown(
                 'Select an option:',
                 this.mainMenuButtons,
             );
         } );
 
-        this.bot.hears( ICONS.informal + ' Updates', ( ctx ) => {
-            ctx.replyWithMarkdownV2(
+        this.bot.hears( ICONS.informal + ' Updates', async ( ctx ) => {
+            if ( !await this.verifyUser( ctx ) ) return;
+            await ctx.replyWithMarkdownV2(
                 '__You are subscribed to the updates on the following proposals:__\n',
             );
         } );
 
         this.bot.on( 'text', async ( ctx ) => {
+            if ( !await this.verifyUser( ctx ) ) return;
             let proposalId: number;
             if ( this.waitingForProposalPreviewNumber ) {
                 this.reset();
@@ -151,14 +180,13 @@ export class Interact {
                 return;
             }
 
-            console.log( result );
+            const link = process.env.PORTAL_URL_PREFIX + process.env.PROPOSAL_URL + proposalId;
 
             await ctx.replyWithMarkdownV2(
-                `__${ this.digest.escapeText( result.proposal.title ) }__\n\n` +
-                `${ this.digest.escapeText( result.proposal.short_description ) }`
-            )
-
-
+                `[\\#${ proposalId } ` +
+                `__${ this.digest.escapeText( result.proposal.title ) }__](${ link })\n\n` +
+                `${ this.digest.escapeText( result.proposal.short_description.substring( 0, 2048 ) + '...' ) }`
+            );
         } );
     }
 

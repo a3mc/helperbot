@@ -58,18 +58,19 @@ $ pm2 reload all
 
 ### How The Bot Works
 
-The Bot signs in to the DevDao portal and collects information about votes and proposals. It posts a daily digest once a day. If there are some active simple votes it will also make an additional post in 12h after the digest. In some cases it may make extra posts when addition attention is required, for example, when a new Simple enters Informal or Formal voting.
+The Bot signs in to the DevDao portal and collects information about votes and proposals. It posts a daily digest once a day. In some cases it may make extra posts when addition attention is required, for example, when a new proposal enters Informal or Formal voting.
 
 The Digest may include the following:
 
 - List of active proposals that didn't reach quorum yet and are ending soon.
+- List of recently completed votes with the result.
 - List of discussions that have attestation rate higher than some defined value, but still lack some attention.
 - Discussions that will reach their 90 days life cycle soon and will expire.
 - Dead discussion that have to be cleaned up.
 
-A special attention is paid to the short-living but important Simple votes. All active simple votes are posted with a digest.
-When a simple vote is ending in a few hours, but didn't reach a quorum, an extra alert is posted to attract VAs attention.
-There's a separate notification when a new Simple just entered Informal or Formal.
+A special attention is paid to the short-living but important Simple and Admin-Grant votes. All such votes are posted with a separate digest.
+When a simple or admin-grant vote is ending in a few hours, but didn't reach a quorum, an extra alert is posted to attract VAs attention.
+There's a separate notification when a new proposal just entered Informal or Formal.
 There's also a post about any voting that failed because of no quorum.
 
 All messages are posted to a private Telegram chat, specified in the `.env` file.

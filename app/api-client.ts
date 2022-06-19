@@ -11,8 +11,13 @@ export class ApiClient {
     private _apiUrlPrefix = process.env.API_URL_PREFIX;
     private _apiAuthToken: string;
     private _requestTimeout = Number( process.env.REQUEST_TIMEOUT );
+    private _signingIn = false;
 
     async get( endpoint: string ): Promise<any> {
+        if ( this._signingIn ) {
+            logger.warn( 'Trying to use Get method while signing in.' );
+            throw new Error( 'Trying to use Get method when signing in.' );
+        }
         // First sign in if needed
         if ( !this.isLoggedIn ) {
             await this.login();
@@ -32,6 +37,7 @@ export class ApiClient {
     }
 
     async login(): Promise<any> {
+        this._signingIn = true;
         logger.debug( 'Signing in.' );
         const result = await this.requestWrapper( 'post', 'login', {
             email: process.env.LOGIN,
@@ -43,7 +49,9 @@ export class ApiClient {
             await this.me();
             await this.settings();
             this.isLoggedIn = true;
+            this._signingIn = false;
         } else {
+            this._signingIn = false;
             throw new Error( 'Error signing in.' );
         }
     }
