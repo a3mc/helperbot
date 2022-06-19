@@ -1,4 +1,4 @@
-##Contributing and Code of Conduct
+Contributing and Code of Conduct
 
 You are welcome to add your suggestions and to contribute to the project. Please create PRs against develop branch if you want to contribute. We reserve the right to ignore or decline any PRs and not to respond to the messages.
 
