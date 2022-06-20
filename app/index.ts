@@ -8,11 +8,16 @@ import { ICONS, POST_TYPES, VOTE_TYPES } from './constants';
 
 dotenv.config();
 
+// The Thelegram bot object wrapped into Telegraf library.
 const bot = new Telegraf( process.env.BOT_TOKEN )
+
+// Class that gathers, filters information and creates text using Markdown v.2 syntax.
 const digest = new Digest();
+
+// This handles operation with the database.
 const dbClient = new DbClient();
 
-// Check if anything needs to be posted.
+// Check if anything needs to be posted. This loop is set to run periodically.
 async function checkLoop(): Promise<void> {
     logger.debug( 'New check cycle.' );
 
@@ -42,14 +47,17 @@ async function checkLoop(): Promise<void> {
     //}
 }
 
+// Make the Digest post, unless the generated text is empty.
 async function digestPost(): Promise<void> {
+    // Create the Digest.
     let digestText = await digest.createDigest();
     if ( digestText.length ) {
         digestText = ICONS.digest + ' \*Daily Digest*\n\n' + digestText;
-        await postMessage( await digestText, POST_TYPES.digest );
+        await postMessage( digestText, POST_TYPES.digest );
     }
 }
 
+// Make a post with the list of active simple/admin-grants. Only if there are any.
 async function simpleAdminListPost(): Promise<void> {
     let votesListText = await digest.listSimpleAdmin();
     if ( votesListText.length ) {
@@ -58,10 +66,12 @@ async function simpleAdminListPost(): Promise<void> {
     }
 }
 
+// Post about simple/admin votes that expire soon and have no quorum.
 async function noQuorumListPost(): Promise<void> {
     const expiringSimple = await digest.expiringSimpleAdminNoQuorum();
     if ( expiringSimple.text.length ) {
         logger.info( 'Expiring simple/admin votes with no quorum.' );
+        // We also pass the ids, to be able to store them and prevent a duplicated post.
         await postMessage(
             expiringSimple.text,
             POST_TYPES.expiring_simple,
@@ -71,6 +81,7 @@ async function noQuorumListPost(): Promise<void> {
     }
 }
 
+// Make a separate post about failed proposals with no quorum and pass their ids to save.
 async function failedListPost(): Promise<void> {
     const newFailedVotes = await digest.newFailedNoQuorum();
     if ( newFailedVotes.text.length ) {
@@ -83,6 +94,7 @@ async function failedListPost(): Promise<void> {
     }
 }
 
+// Post about the proposals that entered a new voting phase and pass their ids, so we can save them.
 async function newProposalPost(): Promise<void> {
     const newVotes = await digest.newProposal();
     if ( newVotes.text.length ) {
@@ -119,12 +131,14 @@ async function postMessage(
 
     logger.debug( digestText );
 
+    // Sent the message to Telegram to the specified Channel (Chat) and get the result.
     const result = await bot.telegram.sendMessage( Number( process.env.CHAT_ID ), digestText, {
         parse_mode: 'MarkdownV2',
     } ).catch( error => {
         logger.warn( error );
     } );
 
+    // If the post was successful.
     if ( result ) {
         logger.info( 'Successfully posted.' );
         // Save ids of new Simple votes, to prevent posting about them again.
@@ -167,6 +181,7 @@ async function checkForDailyDigestTime( simple = false ): Promise<boolean> {
         digestTime = digestTime.add( Number( process.env.DIGEST_TIME_H ) > 12 ? -12 : 12, 'hours' );
     }
 
+    // If the current time is within the time to post Digest and the retry interval.
     if (
         moment().utc().isSameOrAfter( digestTime ) &&
         moment().utc().isBefore( digestTime.clone().add( process.env.POST_RETRY_TIME, 'minutes' ) )
@@ -197,8 +212,12 @@ bot.launch().then( async () => {
             logger.error( error );
             process.exit( 1 );
         } );
+    // Set the interval to run through the loop periodically, as set in CHECK_INTERVAL.
     setInterval(
         async () => {
+            // As network errors may happen when API is down, we gracefully exit the process.
+            // PM2 takes care with relaunching it with increasing intervals to prevent any extra load.
+            // When app is stable for 30 seconds that increasing timer is reset automatically.
             await checkLoop().catch( error => {
                 logger.warn( error );
                 process.exit( 1 );

@@ -12,9 +12,13 @@ export class ApiClient {
     private _apiAuthToken: string;
     private _requestTimeout = Number( process.env.REQUEST_TIMEOUT );
 
+    // Method to fetch data from the specified endpoint.
+    // It uses a wrapper method to prevent some known issues with Axios on network problems.
     async get( endpoint: string ): Promise<any> {
-        // First sign in if needed
+        // First sign in if needed.
         if ( !this.isLoggedIn ) {
+            // If we are not signed in at this moment, we need to do it first, get the settings,
+            // and then we can relaunch the request.
             await this.login();
             return await this.get( endpoint );
         }
@@ -31,6 +35,7 @@ export class ApiClient {
         return result.data;
     }
 
+    // Use specified credentials to obtain a token that is later sent with every request.
     async login(): Promise<any> {
         logger.debug( 'Signing in.' );
         const result = await this.requestWrapper( 'post', 'login', {
@@ -40,6 +45,8 @@ export class ApiClient {
         if ( result.data && result.data.success && result.data.user ) {
             logger.info( 'Signed in.' );
             this._apiAuthToken = result.data.user.accessTokenAPI;
+            // Once we got the token, get some extra information from /me and /settings endpoint,
+            // before making any other requests.
             await this.me();
             await this.settings();
             this.isLoggedIn = true;
@@ -48,6 +55,7 @@ export class ApiClient {
         }
     }
 
+    // We need a number of total active members, that we can get from this endpoint.
     async me(): Promise<any> {
         logger.debug( 'Getting Me info.' );
         const result = await this.requestWrapper( 'get', 'me' );
@@ -59,6 +67,7 @@ export class ApiClient {
         }
     }
 
+    // Settings return some information we use for dealing with quorum rates.
     async settings(): Promise<any> {
         logger.debug( 'Getting Settings.' );
         const result = await this.requestWrapper( 'get', 'shared/global-settings' );
@@ -73,6 +82,7 @@ export class ApiClient {
     }
 
     // Prevent axios requests from hanging on network errors.
+    // It forces it to fail if it doesn't succeed in the specified amount of time.
     async requestWrapper( method: string, url: string, data: any = null ): Promise<any> {
         const source = axios.CancelToken.source();
         const timeout = setTimeout( () => {
