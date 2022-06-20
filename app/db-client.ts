@@ -5,6 +5,7 @@ import util from 'util';
 import { POST_TYPES } from './constants';
 
 export class DbClient {
+    // Create the connection pool with the credentials defined in .env
     protected pool = mysql.createPool( {
         connectionLimit: 10,
         host: process.env.MYSQL_HOST,
@@ -14,6 +15,8 @@ export class DbClient {
     } );
     protected query = util.promisify( this.pool.query ).bind( this.pool );
 
+    // This method is used to save information about the made post.
+    // For individual posts it also saves the proposal ids to prevent double posting.
     async post( type: number, result: number, proposalId = 0, voteType = 0 ): Promise<void> {
         const query = 'INSERT INTO posts (type, date, result, proposal_id, vote_type) VALUES (?, ?, ?, ?, ?)';
         await this.query(
@@ -27,6 +30,7 @@ export class DbClient {
             } );
     }
 
+    // Method to check when the last Digest or Simple list post was made.
     async checkLastPost( type: number ): Promise<boolean> {
         let dateMoment = moment().utc();
         let date: string;
@@ -55,6 +59,7 @@ export class DbClient {
         return !!result.length;
     }
 
+    // Similar to checkLastPost but designed to check for individual posts about new/completed proposals.
     async checkPost(
         proposalId: number,
         voteType: number,
@@ -71,6 +76,7 @@ export class DbClient {
         return !!result.length;
     }
 
+    // Check if there was already an extra alret about the failed proposal.
     async checkFailedPost( proposalId: number ): Promise<boolean> {
         const query = 'SELECT id FROM posts WHERE type=? AND result=? AND proposal_id=?';
         const result = await this.query( query, [POST_TYPES.failed_no_quorum, 1, proposalId] )
@@ -83,6 +89,7 @@ export class DbClient {
         return !!result.length;
     }
 
+    // That's used by a migration to script to create or alter database for future updates.
     async migrate( query: string ): Promise<void> {
         const result = await this.query( query )
             .catch( error => {

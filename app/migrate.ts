@@ -12,6 +12,7 @@ const migrationFiles = [
     '0_create_table_posts.sql'
 ];
 
+// Read each file and pass it to dbClient, so it performs the query.
 async function runMigrations() {
     for ( const migrationFile of migrationFiles ) {
         const queryData = fs.readFileSync(
@@ -22,6 +23,7 @@ async function runMigrations() {
     }
 }
 
+// This runs with a separate command and exits when done. It's not used within the normal lifecycle of the app.
 runMigrations().then( () => {
     logger.info( 'Finished running migrations.' );
     process.exit( 0 );
