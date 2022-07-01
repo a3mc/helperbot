@@ -1,3 +1,4 @@
+// Icons to be used in messages.
 export const ICONS = {
     dead: '☠️',
     ending: '⏳',
@@ -17,6 +18,7 @@ export const ICONS = {
     settings: '⚙️',
 };
 
+// Post types that are stored in the database.
 export const POST_TYPES = {
     digest: 0,
     active_simple: 1,
@@ -25,6 +27,7 @@ export const POST_TYPES = {
     expiring_simple: 4,
 };
 
+// Type of the vote, used to work with the database.
 export const VOTE_TYPES = {
     informal: 0,
     formal: 1,

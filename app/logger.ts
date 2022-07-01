@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// Logger configuration that stores errors and messages in separate files.
 export const logger = winston.createLogger( {
     name: 'console.logs',
     level: process.env.DEBUG_LEVEL,
@@ -22,6 +23,7 @@ export const logger = winston.createLogger( {
     ],
 } );
 
+// Optionally it can report errors to the specified Telegram channel.
 if ( process.env.TG_ERROR_TOKEN && process.env.TG_ERROR_CHAT_ID ) {
     logger.add( new TelegramLogger( {
         level: 'error',
