@@ -20,7 +20,7 @@ export class Interact {
         { text: ICONS.discussions + ' Discussions' },
         { text: ICONS.digest + ' Digest' },
         { text: ICONS.proposal + ' Proposal #' },
-        //{ text: ICONS.alert + ' My Alerts' },
+        { text: ICONS.alert + ' My Alerts' },
     ]
 
     mainMenuButtons = Markup.keyboard(
