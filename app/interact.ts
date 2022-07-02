@@ -20,20 +20,45 @@ export class Interact {
         { text: ICONS.discussions + ' Discussions' },
         { text: ICONS.digest + ' Digest' },
         { text: ICONS.proposal + ' Proposal #' },
-        { text: ICONS.alert + ' My Alerts' },
-    ]
+        { text: ICONS.settings + ' Settings' },
+    ];
 
     mainMenuButtons = Markup.keyboard(
         this.mainButtons,
         { columns: 2 },
     );
 
-    alertsButtons = Markup.keyboard( [
-            { text: ICONS.informal + ' Updates' },
-            { text: ICONS.formal + ' Test2' },
-            { text: ICONS.home + ' Main Menu' },
-        ],
-        { columns: 2 }
+    alertsButtons = [
+        { text: ICONS.simple + ' Digest time' },
+        { text: ICONS.informal_formal + ' Informal/Formal' },
+        { text: ICONS.flag + ' Flags' },
+        { text: ICONS.comment + ' Comments' },
+        { text: ICONS.proposal + ' Proposals' },
+        { text: ICONS.no_quorum + ' Extra alerts' },
+        { text: ICONS.home + ' Main Menu' },
+    ];
+
+    alertsMenuButtons = Markup.keyboard(
+        this.alertsButtons,
+        { columns: 2 },
+    );
+
+    calendarButtons = [
+        { text: ' SU' },
+        { text: ' MO' },
+        { text: ' TU' },
+        { text: ' WE' },
+        { text: ' TH' },
+        { text: ' FR' },
+        { text: ' SA' },
+        { text: ' Turn on/off' },
+        { text: ICONS.simple + ' Set time' },
+        { text: ICONS.home + ' Main Menu' },
+    ];
+
+    calendarMenuButtons = Markup.keyboard(
+        this.calendarButtons,
+        { columns: 7 },
     );
 
     constructor(
@@ -136,11 +161,11 @@ export class Interact {
             } );
         } );
 
-        this.bot.hears( ICONS.alert + ' My Alerts', async ( ctx ) => {
+        this.bot.hears( ICONS.settings + ' Settings', async ( ctx ) => {
             if ( !await this.verifyUser( ctx ) ) return;
             await ctx.replyWithMarkdown(
                 'Select an option:',
-                this.alertsButtons,
+                this.alertsMenuButtons,
             );
         } );
 
@@ -166,12 +191,31 @@ export class Interact {
             );
         } );
 
+        this.bot.hears( ICONS.simple + ' Digest time', async ( ctx ) => {
+            if ( !await this.verifyUser( ctx ) ) return;
+            await this.replyOnAction( ctx, async () => {
+                let text = this.digest.escapeText(
+                    `Set days of the week and time when you wish to receive the Digest.` +
+                    ` You can mute the common channel then, but you still` +
+                    ` need to be a member of it to be able to use the bot.`
+                );
+                return text;
+            } );
+
+            await this.showCalendarMenu( ctx );
+        } );
+
         this.bot.on( 'text', async ( ctx ) => {
             if ( !await this.verifyUser( ctx ) ) return;
 
-            // Check if it's an unknown command and redraw the menu.
+            // Check if it's an unknown command and redraw the menu if needed.
             let unknownMessage = true;
             for ( const command of this.mainButtons ) {
+                if ( command.text === ctx.message.text ) {
+                    unknownMessage = false;
+                }
+            }
+            for ( const command of this.alertsButtons ) {
                 if ( command.text === ctx.message.text ) {
                     unknownMessage = false;
                 }
@@ -228,6 +272,13 @@ export class Interact {
         await ctx.replyWithMarkdown(
             'Select an option:',
             this.mainMenuButtons,
+        );
+    }
+
+    async showCalendarMenu( ctx: any ): Promise<void> {
+        await ctx.replyWithMarkdown(
+            'Choose the days:',
+            this.calendarMenuButtons,
         );
     }
 

@@ -16,6 +16,9 @@ export const ICONS = {
     proposal: '📝',
     alert: '📣',
     settings: '⚙️',
+    flag: '🚩',
+    comment: '💬',
+    informal_formal: '🔶',
 };
 
 // Post types that are stored in the database.
