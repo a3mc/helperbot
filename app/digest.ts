@@ -341,7 +341,7 @@ export class Digest {
         // We calculate how many attestations the discussion needs to reach 51% and to get to Informal,
         // So if just only one or two attestations are needed we format it differently to bring extra attention.
         const votesForQuorum = Math.ceil( 51 / 100 * this.apiClient.totalMembers );
-        const voted = Math.round( discussion.attestation.rate / 100 * this.apiClient.totalMembers );
+        const voted = Math.floor( discussion.attestation.rate / 100 * this.apiClient.totalMembers );
         const votesNeeded = votesForQuorum - voted;
         const icon = votesForQuorum - voted < 3 ? ICONS.alert +
             ` \*${ votesNeeded } attestation${ votesNeeded > 1 ? 's' : '' } needed\\!*\n` : null;
