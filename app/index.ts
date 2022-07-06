@@ -206,7 +206,7 @@ async function checkForDailyDigestTime( simple = false ): Promise<boolean> {
 }
 
 // Handle interactive part.
-new Interact( bot, digest );
+new Interact( bot, digest, dbClient );
 
 // Launch the bot.
 bot.launch().then( async () => {

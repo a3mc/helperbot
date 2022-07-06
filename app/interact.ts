@@ -1,75 +1,32 @@
 import { Context, Markup, Telegraf } from 'telegraf';
 import { Update } from 'typegram';
 import { logger } from './logger';
-import { ICONS } from "./constants";
+import { ALERTS_BUTTONS, CONTEXTS, ICONS, MAIN_BUTTONS, WEEKDAYS } from "./constants";
 import { Digest } from "./digest";
 import moment from "moment";
+import { DbClient } from "./db-client";
 
 
 export class Interact {
 
-    cantPostChatIds: number[] = [];
-    waitingForProposalPreviewNumberChatIds: number[] = [];
-    verifiedUsers: number[] = [];
-    rateLimit = 400; // User can post not more often then this amount of time in ms.
-
-    mainButtons = [
-        { text: ICONS.informal + ' Informal' },
-        { text: ICONS.formal + ' Formal' },
-        { text: ICONS.completed + ' Completed' },
-        { text: ICONS.discussions + ' Discussions' },
-        { text: ICONS.digest + ' Digest' },
-        { text: ICONS.proposal + ' Proposal #' },
-        { text: ICONS.settings + ' Settings' },
-    ];
-
-    mainMenuButtons = Markup.keyboard(
-        this.mainButtons,
-        { columns: 2 },
-    );
-
-    alertsButtons = [
-        { text: ICONS.simple + ' Digest time' },
-        { text: ICONS.informal_formal + ' Informal/Formal' },
-        { text: ICONS.flag + ' Flags' },
-        { text: ICONS.comment + ' Comments' },
-        { text: ICONS.proposal + ' Proposals' },
-        { text: ICONS.no_quorum + ' Extra alerts' },
-        { text: ICONS.home + ' Main Menu' },
-    ];
-
-    alertsMenuButtons = Markup.keyboard(
-        this.alertsButtons,
-        { columns: 2 },
-    );
-
-    calendarButtons = [
-        { text: ' SU' },
-        { text: ' MO' },
-        { text: ' TU' },
-        { text: ' WE' },
-        { text: ' TH' },
-        { text: ' FR' },
-        { text: ' SA' },
-        { text: ' Turn on/off' },
-        { text: ICONS.simple + ' Set time' },
-        { text: ICONS.home + ' Main Menu' },
-    ];
-
-    calendarMenuButtons = Markup.keyboard(
-        this.calendarButtons,
-        { columns: 7 },
-    );
+    cantPostChatIds: number[] = []; // Temporary paused users.
+    waitingForProposalPreviewNumberChatIds: number[] = []; // Chat ids that are waiting for proposal #.
+    verifiedUsers: number[] = []; // Remember if user is a member of main chat, so we don't check it each time.
+    actionDelayTime = 400; // User can trigger immediate action not more often than this amount of time in ms.
+    mainMenuButtons = Markup.keyboard( MAIN_BUTTONS, { columns: 2 } );
+    alertsMenuButtons = Markup.keyboard( ALERTS_BUTTONS, { columns: 2 } );
 
     constructor(
         protected bot: Telegraf<Context<Update>>,
         protected digest: Digest,
+        protected dbClient: DbClient,
     ) {
         this.initHandlers().then( () => {
             logger.debug( 'Interactive bot part initialized.' )
         } );
     }
 
+    // Check if user can use this bot.
     async verifyUser( ctx ): Promise<boolean> {
         const userId = ( await ctx.getChat() ).id;
 
@@ -80,10 +37,10 @@ export class Interact {
 
         // Check if user is a member of the common Bot channel.
         const channelUser = await ctx.telegram.getChatMember( Number( process.env.CHAT_ID ), userId );
-        if ( userId !== channelUser.user.id ) {
+        if ( !channelUser || userId !== channelUser.user.id ) {
             await ctx.replyWithMarkdown(
                 `Sorry, you don\'t have access to this bot. Please make sure you are a member ` +
-                `of the DxD VAs group Helper Bot channel` );
+                `of the DxD VAs Helper Bot channel.` );
             return false;
         }
 
@@ -191,8 +148,32 @@ export class Interact {
             );
         } );
 
+        // Listen for weekdays commands in the current context menu.
+        for ( const day in WEEKDAYS ) {
+            this.bot.hears( [ICONS.completed + ' ' + day, ICONS.off + ' ' + day], async ( ctx ) => {
+                // Check user and the current context menu.
+                if ( !await this.verifyUser( ctx ) ) return;
+                const context = await this.dbClient.getMenu( ctx.chat.id );
+                if ( !context.length || !CONTEXTS.includes( context[0].menu ) ) {
+                    logger.warn( 'No context found for %d', ctx.chat.id );
+                    await this.showMainMenu( ctx );
+                    return;
+                }
+
+                // Update user preferences with the inverted setting for day.
+                const preferences = await this.getUserPreferences( ctx.chat.id, context[0].menu );
+                await this.setUserPreferences( ctx, context[0].menu, {
+                    weekday: WEEKDAYS[day],
+                    value: preferences !== [] ? !preferences[WEEKDAYS[day]] : false,
+                } );
+            } );
+        }
+
         this.bot.hears( ICONS.simple + ' Digest time', async ( ctx ) => {
             if ( !await this.verifyUser( ctx ) ) return;
+
+            await this.dbClient.setMenu( ctx.chat.id, 'digest' );
+
             await this.replyOnAction( ctx, async () => {
                 let text = this.digest.escapeText(
                     `Set days of the week and time when you wish to receive the Digest.` +
@@ -202,7 +183,7 @@ export class Interact {
                 return text;
             } );
 
-            await this.showCalendarMenu( ctx );
+            await this.showCalendarMenu( ctx, 'digest' );
         } );
 
         this.bot.on( 'text', async ( ctx ) => {
@@ -210,12 +191,12 @@ export class Interact {
 
             // Check if it's an unknown command and redraw the menu if needed.
             let unknownMessage = true;
-            for ( const command of this.mainButtons ) {
+            for ( const command of MAIN_BUTTONS ) {
                 if ( command.text === ctx.message.text ) {
                     unknownMessage = false;
                 }
             }
-            for ( const command of this.alertsButtons ) {
+            for ( const command of ALERTS_BUTTONS ) {
                 if ( command.text === ctx.message.text ) {
                     unknownMessage = false;
                 }
@@ -275,17 +256,66 @@ export class Interact {
         );
     }
 
-    async showCalendarMenu( ctx: any ): Promise<void> {
-        await ctx.replyWithMarkdown(
-            'Choose the days:',
-            this.calendarMenuButtons,
+    async getUserPreferences( chatId: number, type = 'digest' ): Promise<any> {
+        const preferences = await this.dbClient.getPreferences( chatId, type );
+        // Return default if not found.
+        if ( !preferences.length ) {
+            return {
+                sunday: false,
+                monday: false,
+                tuesday: false,
+                wednesday: false,
+                thursday: false,
+                friday: false,
+                saturday: false,
+                time: '15:00',
+            };
+        } else {
+            return preferences[0];
+        }
+    }
+
+    // Save the new menu and display it in the menu.
+    async setUserPreferences( ctx: any, type = 'digest', preference: any ): Promise<void> {
+        // Save and redraw the menu with the new value.
+        await this.dbClient.setPreferences( ctx.chat.id, type, preference );
+        await this.showCalendarMenu( ctx, type );
+    }
+
+    async showCalendarMenu( ctx: any, type ): Promise<void> {
+        const userPreferences = await this.getUserPreferences( ctx.chat.id, type );
+
+        // Prepare a set of calendar buttons for the menu.
+        const calendarButtons = [
+            { text: ( userPreferences.sunday ? ICONS.completed : ICONS.off ) + ' SU' },
+            { text: ( userPreferences.monday ? ICONS.completed : ICONS.off ) + ' MO' },
+            { text: ( userPreferences.tuesday ? ICONS.completed : ICONS.off ) + ' TU' },
+            { text: ( userPreferences.wednesday ? ICONS.completed : ICONS.off ) + ' WE' },
+            { text: ( userPreferences.thursday ? ICONS.completed : ICONS.off ) + ' TH' },
+            { text: ( userPreferences.friday ? ICONS.completed : ICONS.off ) + ' FR' },
+            { text: ( userPreferences.saturday ? ICONS.completed : ICONS.off ) + ' SA' },
+            { text: ICONS.simple + ' Time' },
+            { text: ICONS.settings + ' Settings' },
+            { text: ICONS.home + ' Main Menu' },
+        ];
+
+        const calendarMenuButtons = Markup.keyboard(
+            calendarButtons,
+            { columns: 7 },
+        );
+
+        // editMessageReplyMarkup
+        const message = await ctx.replyWithMarkdown(
+            'Set schedule:',
+            calendarMenuButtons,
         );
     }
 
-    async replyOnAction( ctx: any, method: any ): Promise<void> {
+    // Launch an immediate action when called from the main menu.
+    async replyOnAction( ctx: any, method: Function ): Promise<void> {
         this.reset( ctx );
 
-        // Prevent too often posts by temporary saving the chat id.
+        // Prevent too often actions by temporary saving the chat id.
         if ( this.cantPostChatIds.includes( ctx.chat.id ) ) {
             return;
         }
@@ -294,13 +324,13 @@ export class Interact {
         const text = await method();
         await ctx.replyWithMarkdownV2( text );
 
-        // Allow user to post again. Remove it from the list.
+        // Allow user to launch an immediate action again. Remove it from the list.
         setTimeout( () => {
             const index = this.cantPostChatIds.indexOf( ctx.chat.id );
             if ( index !== -1 ) {
                 this.cantPostChatIds.splice( index, 1 );
             }
-        }, this.rateLimit );
+        }, this.actionDelayTime );
     }
 
     reset( ctx: any ) {

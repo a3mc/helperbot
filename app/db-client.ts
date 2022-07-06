@@ -89,6 +89,77 @@ export class DbClient {
         return !!result.length;
     }
 
+    // Get current user's menu type by chat id.
+    async getMenu( chatId: number ): Promise<any> {
+        const query = 'SELECT menu FROM context WHERE chat_id=?';
+        const result = await this.query( query, [chatId] )
+            .catch( error => {
+                logger.warn( error );
+                logger.error( 'MySQL error getting user\'s menu.' );
+                throw new Error();
+            } );
+
+        return result;
+    }
+
+    // Set current user's menu type by chat id.
+    async setMenu( chatId: number, menu: string ): Promise<any> {
+        let query = 'SELECT menu FROM context WHERE chat_id=?';
+        let result = await this.query( query, [chatId] )
+            .catch( error => {
+                logger.warn( error );
+                logger.error( 'MySQL error getting user\'s menu.' );
+                throw new Error();
+            } );
+
+        query = 'UPDATE context SET menu=? WHERE chat_id=?';
+        if ( !result.length ) {
+            query = 'INSERT INTO context (menu, chat_id) VALUES (?, ? )'
+        }
+
+        result = await this.query( query, [
+            menu,
+            chatId
+        ] );
+
+        return result;
+    }
+
+    // Get stored user preferences by Chat ID and type.
+    async getPreferences( chatId: number, type: string ): Promise<any> {
+        const query = 'SELECT * FROM preferences WHERE chat_id=? AND pref_type=?';
+        const result = await this.query( query, [chatId, type] )
+            .catch( error => {
+                logger.warn( error );
+                logger.error( 'MySQL error getting preferences.' );
+                throw new Error();
+            } );
+
+        return result;
+    }
+
+    // Store user preferences by Chat ID and type.
+    async setPreferences( chatId: number, type: string, preference: any ): Promise<any> {
+        const existingPreferences = await this.getPreferences( chatId, type );
+        let query = 'UPDATE preferences SET ' + preference.weekday + '=? WHERE chat_id=? AND pref_type=?';
+        if ( !existingPreferences.length ) {
+            query = 'INSERT INTO preferences (' + preference.weekday + ', chat_id, pref_type) VALUES (? ,?, ?)';
+        }
+
+        const result = await this.query( query, [
+            !!preference.value,
+            chatId,
+            type
+        ] )
+            .catch( error => {
+                logger.warn( error );
+                logger.error( 'MySQL error setting preferences.' );
+                throw new Error();
+            } );
+
+        return result;
+    }
+
     // That's used by a migration to script to create or alter database for future updates.
     async migrate( query: string ): Promise<void> {
         const result = await this.query( query )
