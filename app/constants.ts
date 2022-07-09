@@ -48,17 +48,49 @@ export const MAIN_BUTTONS = [
 ];
 
 export const ALERTS_BUTTONS = [
-    { text: ICONS.simple + ' Digest time' },
-    { text: ICONS.informal_formal + ' Informal/Formal' },
-    { text: ICONS.flag + ' Flags' },
-    { text: ICONS.comment + ' Comments' },
-    { text: ICONS.proposal + ' Proposals' },
-    { text: ICONS.no_quorum + ' Extra alerts' },
+    { text: ICONS.settings  + ' Timezone' },
+    {
+        text: ICONS.settings + ' Digest',
+        type: 'digest',
+        extraText: `Set days of the week and time when you wish to receive the Digest.` +
+            ` You can mute the common channel then, but you still` +
+            ` need to be a member of it to be able to use the bot.`,
+    },
+    {
+        text: ICONS.settings  + ' Informal/Formal',
+        type: 'informal-formal',
+        extraText: `Informal text`,
+    },
+    {
+        text: ICONS.settings  + ' Flags',
+        type: 'flags',
+        extraText: `flags text`,
+    },
+    {
+        text: ICONS.settings  + ' Comments',
+        type: 'comments',
+        extraText: `comment text`,
+    },
+    {
+        text: ICONS.settings  + ' Proposals',
+        type: 'proposals',
+        extraText: `proposals text`,
+    },
+    {
+        text: ICONS.settings  + ' Extra alerts',
+        type: 'extra',
+        extraText: `extra text`,
+    },
     { text: ICONS.home + ' Main Menu' },
 ];
 
 export const CONTEXTS = [
-  'digest',
+    'digest',
+    'informal-formal',
+    'flags',
+    'comments',
+    'proposals',
+    'extra',
 ];
 
 export const WEEKDAYS = {

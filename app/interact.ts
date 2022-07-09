@@ -1,10 +1,10 @@
 import { Context, Markup, Telegraf } from 'telegraf';
 import { Update } from 'typegram';
 import { logger } from './logger';
-import { ALERTS_BUTTONS, CONTEXTS, ICONS, MAIN_BUTTONS, WEEKDAYS } from "./constants";
-import { Digest } from "./digest";
-import moment from "moment";
-import { DbClient } from "./db-client";
+import { ALERTS_BUTTONS, CONTEXTS, ICONS, MAIN_BUTTONS, WEEKDAYS } from './constants';
+import { Digest } from './digest';
+import moment from 'moment';
+import { DbClient } from './db-client';
 
 
 export class Interact {
@@ -141,8 +141,10 @@ export class Interact {
             );
         } );
 
-        this.bot.hears( ICONS.informal + ' Updates', async ( ctx ) => {
+        // Set the Digest time.
+        this.bot.hears( ICONS.simple + ' Time', async ( ctx ) => {
             if ( !await this.verifyUser( ctx ) ) return;
+
             await ctx.replyWithMarkdownV2(
                 '__You are subscribed to the updates on the following proposals:__\n',
             );
@@ -169,22 +171,20 @@ export class Interact {
             } );
         }
 
-        this.bot.hears( ICONS.simple + ' Digest time', async ( ctx ) => {
-            if ( !await this.verifyUser( ctx ) ) return;
-
-            await this.dbClient.setMenu( ctx.chat.id, 'digest' );
-
-            await this.replyOnAction( ctx, async () => {
-                let text = this.digest.escapeText(
-                    `Set days of the week and time when you wish to receive the Digest.` +
-                    ` You can mute the common channel then, but you still` +
-                    ` need to be a member of it to be able to use the bot.`
-                );
-                return text;
-            } );
-
-            await this.showCalendarMenu( ctx, 'digest' );
-        } );
+        // Display a menu for each type of settings buttons, excluding back buttons.
+        for ( const button of ALERTS_BUTTONS ) {
+            if ( button.type ) {
+                this.bot.hears( button.text , async ( ctx ) => {
+                    if ( !await this.verifyUser( ctx ) ) return;
+                    await this.dbClient.setMenu( ctx.chat.id, button.type );
+                    await this.replyOnAction( ctx, async () => {
+                        let text = this.digest.escapeText( button.extraText );
+                        return text;
+                    } );
+                    await this.showCalendarMenu( ctx, button.type );
+                } );
+            }
+        }
 
         this.bot.on( 'text', async ( ctx ) => {
             if ( !await this.verifyUser( ctx ) ) return;
@@ -282,7 +282,8 @@ export class Interact {
         await this.showCalendarMenu( ctx, type );
     }
 
-    async showCalendarMenu( ctx: any, type ): Promise<void> {
+    // Display a calendar menu for the settings sub-pages. Type defines the menu context.
+    async showCalendarMenu( ctx: any, type: string ): Promise<void> {
         const userPreferences = await this.getUserPreferences( ctx.chat.id, type );
 
         // Prepare a set of calendar buttons for the menu.
@@ -294,17 +295,20 @@ export class Interact {
             { text: ( userPreferences.thursday ? ICONS.completed : ICONS.off ) + ' TH' },
             { text: ( userPreferences.friday ? ICONS.completed : ICONS.off ) + ' FR' },
             { text: ( userPreferences.saturday ? ICONS.completed : ICONS.off ) + ' SA' },
-            { text: ICONS.simple + ' Time' },
-            { text: ICONS.settings + ' Settings' },
-            { text: ICONS.home + ' Main Menu' },
         ];
 
-        const calendarMenuButtons = Markup.keyboard(
-            calendarButtons,
-            { columns: 7 },
+        // Only Digest has a Time setting. Other notifications are delivered immediately.
+        if ( type === 'digest' ) {
+            calendarButtons.push( { text: ICONS.simple + ' Time' } );
+        }
+        calendarButtons.push(
+            { text: ICONS.settings + ' Settings' },
+            { text: ICONS.home + ' Main Menu' }
         );
 
-        // editMessageReplyMarkup
+        const calendarMenuButtons = Markup.keyboard( calendarButtons, { columns: 7 } );
+
+        // FIXME: editMessageReplyMarkup
         const message = await ctx.replyWithMarkdown(
             'Set schedule:',
             calendarMenuButtons,
