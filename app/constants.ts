@@ -48,7 +48,9 @@ export const MAIN_BUTTONS = [
 ];
 
 export const ALERTS_BUTTONS = [
-    { text: ICONS.settings  + ' Timezone' },
+    {
+        text: ICONS.settings  + ' Timezone'
+    },
     {
         text: ICONS.settings + ' Digest',
         type: 'digest',
@@ -94,11 +96,17 @@ export const CONTEXTS = [
 ];
 
 export const WEEKDAYS = {
-    'SU': 'sunday',
-    'MO': 'monday',
-    'TU': 'tuesday',
-    'WE': 'wednesday',
-    'TH': 'thursday',
-    'FR': 'friday',
-    'SA': 'saturday',
+    SU: 'sunday',
+    MO: 'monday',
+    TU: 'tuesday',
+    WE: 'wednesday',
+    TH: 'thursday',
+    FR: 'friday',
+    SA: 'saturday',
+}
+
+export const MESSAGES = {
+    timezone: 'Enter your UTC timezone offset (e.g. -5 for New York, +7 for Bangkok):',
+    digestTime: 'Enter the preferred time for a Digest in 24h format (e.g. 14:30):',
+    proposal: 'Enter the proposal number for preview:',
 }

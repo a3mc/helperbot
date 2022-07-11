@@ -141,13 +141,13 @@ export class DbClient {
     // Store user preferences by Chat ID and type.
     async setPreferences( chatId: number, type: string, preference: any ): Promise<any> {
         const existingPreferences = await this.getPreferences( chatId, type );
-        let query = 'UPDATE preferences SET ' + preference.weekday + '=? WHERE chat_id=? AND pref_type=?';
+        let query = 'UPDATE preferences SET ' + preference.pref + '=? WHERE chat_id=? AND pref_type=?';
         if ( !existingPreferences.length ) {
-            query = 'INSERT INTO preferences (' + preference.weekday + ', chat_id, pref_type) VALUES (? ,?, ?)';
+            query = 'INSERT INTO preferences (' + preference.pref + ', chat_id, pref_type) VALUES (? ,?, ?)';
         }
 
         const result = await this.query( query, [
-            !!preference.value,
+            preference.value,
             chatId,
             type
         ] )

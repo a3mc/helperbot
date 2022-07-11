@@ -1,7 +1,7 @@
 import { Context, Markup, Telegraf } from 'telegraf';
 import { Update } from 'typegram';
 import { logger } from './logger';
-import { ALERTS_BUTTONS, CONTEXTS, ICONS, MAIN_BUTTONS, WEEKDAYS } from './constants';
+import { ALERTS_BUTTONS, CONTEXTS, ICONS, MAIN_BUTTONS, MESSAGES, WEEKDAYS } from './constants';
 import { Digest } from './digest';
 import moment from 'moment';
 import { DbClient } from './db-client';
@@ -26,41 +26,10 @@ export class Interact {
         } );
     }
 
-    // Check if user can use this bot.
-    async verifyUser( ctx ): Promise<boolean> {
-        const userId = ( await ctx.getChat() ).id;
-
-        // Check if this user is already verified.
-        if ( this.verifiedUsers.includes( userId ) ) {
-            return true;
-        }
-
-        // Check if user is a member of the common Bot channel.
-        const channelUser = await ctx.telegram.getChatMember( Number( process.env.CHAT_ID ), userId );
-        if ( !channelUser || userId !== channelUser.user.id ) {
-            await ctx.replyWithMarkdown(
-                `Sorry, you don\'t have access to this bot. Please make sure you are a member ` +
-                `of the DxD VAs Helper Bot channel.` );
-            return false;
-        }
-
-        // Add users to the temporary array, so we can avoid double checks until the next app relaunch.
-        if ( !this.verifiedUsers.includes( userId ) ) {
-            this.verifiedUsers.push( userId );
-        }
-
-        // Ignore old messages in case of bot reload happened.
-        if ( moment.unix( ctx.message.date ).utc().diff( moment().utc(), 'seconds' ) < -60 ) {
-            logger.warn( 'Message older than 60 seconds detected, ignoring.' );
-            return false;
-        }
-        return true;
-    }
-
     async initHandlers(): Promise<void> {
         this.bot.start( async ( ctx ) => {
             if ( !await this.verifyUser( ctx ) ) return;
-            ctx.reply( `Hi ${ ctx.update.message.from.first_name }` );
+            ctx.reply( `Hello ${ ctx.update.message.from.first_name }` );
             await this.showMainMenu( ctx );
         } );
 
@@ -120,34 +89,31 @@ export class Interact {
 
         this.bot.hears( ICONS.settings + ' Settings', async ( ctx ) => {
             if ( !await this.verifyUser( ctx ) ) return;
-            await ctx.replyWithMarkdown(
-                'Select an option:',
-                this.alertsMenuButtons,
-            );
+            await this.showSettingsMenu( ctx );
         } );
 
         this.bot.hears( ICONS.proposal + ' Proposal #', async ( ctx ) => {
             if ( !await this.verifyUser( ctx ) ) return;
-            await ctx.reply( 'Enter the proposal number for the preview:' );
-            this.reset( ctx );
-            this.waitingForProposalPreviewNumberChatIds.push( ctx.chat.id );
+            await ctx.reply( MESSAGES.proposal, Markup.forceReply() );
         } );
 
         this.bot.hears( ICONS.home + ' Main Menu', async ( ctx ) => {
             if ( !await this.verifyUser( ctx ) ) return;
-            await ctx.replyWithMarkdown(
-                'Select an option:',
-                this.mainMenuButtons,
-            );
+            await this.showMainMenu( ctx );
+        } );
+
+        // Set the Timezone UTC offset.
+        this.bot.hears( ICONS.settings + ' Timezone', async ( ctx ) => {
+            if ( !await this.verifyUser( ctx ) ) return;
+            const timezone = ( await this.getUserPreferences( ctx.chat.id, 'general' ) ).timezone;
+            await ctx.reply( 'Current timezone offset is ' + ( timezone > 0 ? '+' : '' ) + timezone );
+            await ctx.reply( MESSAGES.timezone, Markup.forceReply() );
         } );
 
         // Set the Digest time.
         this.bot.hears( ICONS.simple + ' Time', async ( ctx ) => {
             if ( !await this.verifyUser( ctx ) ) return;
-
-            await ctx.replyWithMarkdownV2(
-                '__You are subscribed to the updates on the following proposals:__\n',
-            );
+            await ctx.reply( MESSAGES.digestTime, Markup.forceReply() );
         } );
 
         // Listen for weekdays commands in the current context menu.
@@ -165,7 +131,7 @@ export class Interact {
                 // Update user preferences with the inverted setting for day.
                 const preferences = await this.getUserPreferences( ctx.chat.id, context[0].menu );
                 await this.setUserPreferences( ctx, context[0].menu, {
-                    weekday: WEEKDAYS[day],
+                    pref: WEEKDAYS[day],
                     value: preferences !== [] ? !preferences[WEEKDAYS[day]] : false,
                 } );
             } );
@@ -174,7 +140,7 @@ export class Interact {
         // Display a menu for each type of settings buttons, excluding back buttons.
         for ( const button of ALERTS_BUTTONS ) {
             if ( button.type ) {
-                this.bot.hears( button.text , async ( ctx ) => {
+                this.bot.hears( button.text, async ( ctx ) => {
                     if ( !await this.verifyUser( ctx ) ) return;
                     await this.dbClient.setMenu( ctx.chat.id, button.type );
                     await this.replyOnAction( ctx, async () => {
@@ -188,6 +154,13 @@ export class Interact {
 
         this.bot.on( 'text', async ( ctx ) => {
             if ( !await this.verifyUser( ctx ) ) return;
+
+            // Check if it's a user reply on a request.
+            if ( ctx.message.reply_to_message ) {
+                return await this.processReplies( ctx );
+            }
+
+            console.log( 'text', ctx.message.text );
 
             // Check if it's an unknown command and redraw the menu if needed.
             let unknownMessage = true;
@@ -245,18 +218,80 @@ export class Interact {
         } );
     }
 
-    async showMenu( ctx: any ): Promise<void> {
-        await this.showMainMenu( ctx );
+    async processReplies( ctx: any ): Promise<void> {
+        const context = await this.dbClient.getMenu( ctx.chat.id );
+        if ( !context.length ) {
+            logger.warn( 'Wrong context for %d', ctx.chat.id );
+            await this.showMainMenu( ctx );
+            return;
+        }
+
+        // Setting Digest post time
+        if (
+            ctx.message.reply_to_message.text === MESSAGES.digestTime &&
+            context[0].menu === 'digest'
+        ) {
+            if ( !this.checkTimeFormat( ctx.message.text ) ) {
+                await ctx.reply( 'Wrong time format.' );
+                await this.showMenu( ctx );
+                return;
+            }
+            // Save time in db.
+            await this.setUserPreferences( ctx, 'digest', {
+                pref: 'post_time',
+                value: ctx.message.text
+            } );
+            // Setting local timezone offset
+        } else if (
+            ctx.message.reply_to_message.text === MESSAGES.timezone &&
+            context[0].menu === 'settings'
+        ) {
+            const offset = parseInt( ctx.message.text );
+            if ( this.checkTimezoneFormat( offset ) ) {
+                await ctx.reply( 'Incorrect timezone offset.' );
+                await this.showMenu( ctx );
+                return;
+            }
+            // Save timezone UTC offset in db.
+            await this.setUserPreferences( ctx, 'general', {
+                pref: 'timezone',
+                value: offset,
+            } )
+        } else if (
+            ctx.message.reply_to_message.text === MESSAGES.proposal &&
+            context[0].menu === 'main'
+        ) {
+            console.log('proposal')
+        }
+
+        await this.showMenu( ctx );
     }
 
-    async showMainMenu( ctx: any ): Promise<void> {
-        await ctx.replyWithMarkdown(
-            'Select an option:',
-            this.mainMenuButtons,
+    // Validate entered time string. It should be strictly in 'hh:mm' format.
+    checkTimeFormat( time: string ): boolean {
+        if ( !time.match( /\d\d:\d\d/ ) ) return false;
+        const timeArr = time.split( ':' );
+        if (
+            parseInt( time[0] ) > 23 ||
+            parseInt( time[0] ) < 0 ||
+            parseInt( time[1] ) < 0 ||
+            parseInt( time[1] ) > 59
+        ) {
+            return false;
+        }
+        return true;
+    }
+
+    // Validate the timezone offset.
+    checkTimezoneFormat( offset: number ): boolean {
+        return (
+            isNaN( offset ) ||
+            offset < -12 ||
+            offset > 12
         );
     }
 
-    async getUserPreferences( chatId: number, type = 'digest' ): Promise<any> {
+    async getUserPreferences( chatId: number, type: string ): Promise<any> {
         const preferences = await this.dbClient.getPreferences( chatId, type );
         // Return default if not found.
         if ( !preferences.length ) {
@@ -268,7 +303,8 @@ export class Interact {
                 thursday: false,
                 friday: false,
                 saturday: false,
-                time: '15:00',
+                post_time: '15:00',
+                timezone: 0,
             };
         } else {
             return preferences[0];
@@ -276,10 +312,38 @@ export class Interact {
     }
 
     // Save the new menu and display it in the menu.
-    async setUserPreferences( ctx: any, type = 'digest', preference: any ): Promise<void> {
+    async setUserPreferences( ctx: any, type: string, preference: any ): Promise<void> {
         // Save and redraw the menu with the new value.
         await this.dbClient.setPreferences( ctx.chat.id, type, preference );
         await this.showCalendarMenu( ctx, type );
+    }
+
+    async showMenu( ctx: any ): Promise<void> {
+        const context = await this.dbClient.getMenu( ctx.chat.id );
+        if ( context.length ) {
+            if ( CONTEXTS.includes( context[0].menu ) ) {
+                return await this.showCalendarMenu( ctx, context[0].menu );
+            } else if ( context[0].menu === 'settings' ) {
+                return await this.showSettingsMenu( ctx );
+            }
+        }
+        await this.showMainMenu( ctx );
+    }
+
+    async showSettingsMenu( ctx: any ): Promise<void> {
+        await this.dbClient.setMenu( ctx.chat.id, 'settings' );
+        await ctx.replyWithMarkdown(
+            'Select an option:',
+            this.alertsMenuButtons,
+        );
+    }
+
+    async showMainMenu( ctx: any ): Promise<void> {
+        await this.dbClient.setMenu( ctx.chat.id, 'main' );
+        await ctx.replyWithMarkdown(
+            'Select an option:',
+            this.mainMenuButtons,
+        );
     }
 
     // Display a calendar menu for the settings sub-pages. Type defines the menu context.
@@ -335,6 +399,37 @@ export class Interact {
                 this.cantPostChatIds.splice( index, 1 );
             }
         }, this.actionDelayTime );
+    }
+
+    // Check if user can use this bot.
+    async verifyUser( ctx ): Promise<boolean> {
+        const userId = ( await ctx.getChat() ).id;
+
+        // Check if this user is already verified.
+        if ( this.verifiedUsers.includes( userId ) ) {
+            return true;
+        }
+
+        // Check if user is a member of the common Bot channel.
+        const channelUser = await ctx.telegram.getChatMember( Number( process.env.CHAT_ID ), userId );
+        if ( !channelUser || userId !== channelUser.user.id ) {
+            await ctx.replyWithMarkdown(
+                `Sorry, you don\'t have access to this bot. Please make sure you are a member ` +
+                `of the DxD VAs Helper Bot channel.` );
+            return false;
+        }
+
+        // Add users to the temporary array, so we can avoid double checks until the next app relaunch.
+        if ( !this.verifiedUsers.includes( userId ) ) {
+            this.verifiedUsers.push( userId );
+        }
+
+        // Ignore old messages in case of bot reload happened.
+        if ( moment.unix( ctx.message.date ).utc().diff( moment().utc(), 'seconds' ) < -60 ) {
+            logger.warn( 'Message older than 60 seconds detected, ignoring.' );
+            return false;
+        }
+        return true;
     }
 
     reset( ctx: any ) {
