@@ -114,7 +114,7 @@ export class Digest {
     }
 
     // As the situation when proposal fails because of no quorum, and we want to avoid it at all cost - we make
-    // a post if it happens. We check completed vots without a quorum.
+    // a post if it happens. We check completed votes without a quorum.
     async newFailedNoQuorum(): Promise<any> {
         const noQuorum = ( await this.completedVotes() ).filter( vote => vote.result === 'no-quorum' );
         let newNoQuorum = [];

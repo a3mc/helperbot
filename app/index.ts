@@ -152,10 +152,10 @@ async function postMessage(
         } else if ( type === POST_TYPES.failed_no_quorum || type === POST_TYPES.expiring_simple ) {
             // Save ids of failed no-quorum votes.
             for ( const id of informalIds ) {
-                await dbClient.post( type, 1, id );
+                await dbClient.post( type, 1, id, VOTE_TYPES.informal );
             }
             for ( const id of formalIds ) {
-                await dbClient.post( type, 1, id );
+                await dbClient.post( type, 1, id, VOTE_TYPES.formal );
             }
         } else {
             // Save that digest was posted successfully.
