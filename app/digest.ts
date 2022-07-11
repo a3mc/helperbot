@@ -321,7 +321,7 @@ export class Digest {
 
         if ( result ) {
             // That's for completed votes, to show the result of the voting.
-            text += `: \*${ vote.result.toUpperCase() }* \_${ vote.type }_`;
+            text += `: \*${ this.escapeText( vote.result.toUpperCase() ) }* \_${ vote.type }_`;
         }
 
         text += `\n\n`;
