@@ -114,7 +114,7 @@ export class Digest {
     }
 
     // As the situation when proposal fails because of no quorum, and we want to avoid it at all cost - we make
-    // a post if it happens. We check completed vots without a quorum.
+    // a post if it happens. We check completed votes without a quorum.
     async newFailedNoQuorum(): Promise<any> {
         const noQuorum = ( await this.completedVotes() ).filter( vote => vote.result === 'no-quorum' );
         let newNoQuorum = [];
@@ -321,7 +321,7 @@ export class Digest {
 
         if ( result ) {
             // That's for completed votes, to show the result of the voting.
-            text += `: \*${ vote.result.toUpperCase() }* \_${ vote.type }_`;
+            text += `: \*${ this.escapeText( vote.result.toUpperCase() ) }* \_${ vote.type }_`;
         }
 
         text += `\n\n`;``
