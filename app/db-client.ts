@@ -125,6 +125,45 @@ export class DbClient {
         return result;
     }
 
+    // Get proposal ids that user put to the watch list.
+    async getProposals( chatId: number ): Promise<any> {
+        const query = 'SELECT proposal_id FROM proposals WHERE chat_id=?';
+        const result = await this.query( query, [chatId] )
+            .catch( error => {
+                logger.warn( error );
+                logger.error( 'MySQL error getting user\'s proposals.' );
+                throw new Error();
+            } );
+
+        return result.map( item => item.proposal_id );
+    }
+
+    // Save proposal id to the user's watch list.
+    async saveProposal( chatId: number, proposalId: number ): Promise<any> {
+        const query = 'INSERT INTO proposals (chat_id, proposal_id) VALUES(?, ?)';
+        const result = await this.query( query, [chatId, proposalId] )
+            .catch( error => {
+                logger.warn( error );
+                logger.error( 'MySQL error saving user\'s proposal.' );
+                throw new Error();
+            } );
+
+        return result;
+    }
+
+    // Remove proposal id from the user's watch list.
+    async removeProposal( chatId: number, proposalId: number ): Promise<any> {
+        const query = 'DELETE from proposals WHERE chat_id=? AND proposal_id=?';
+        const result = await this.query( query, [chatId, proposalId] )
+            .catch( error => {
+                logger.warn( error );
+                logger.error( 'MySQL error removing user\'s proposal.' );
+                throw new Error();
+            } );
+
+        return result;
+    }
+
     // Get stored user preferences by Chat ID and type.
     async getPreferences( chatId: number, type: string ): Promise<any> {
         const query = 'SELECT * FROM preferences WHERE chat_id=? AND pref_type=?';

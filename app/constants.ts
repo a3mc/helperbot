@@ -54,34 +54,30 @@ export const ALERTS_BUTTONS = [
     {
         text: ICONS.settings + ' Digest',
         type: 'digest',
-        extraText: `Set days of the week and time when you wish to receive the Digest.` +
-            ` You can mute the common channel then, but you still` +
-            ` need to be a member of it to be able to use the bot.`,
     },
     {
         text: ICONS.settings  + ' Informal/Formal',
         type: 'informal-formal',
-        extraText: `Informal text`,
+        extraText: 'You will receive a message once any proposal enters the Informal or Formal voting stage.'
     },
     {
         text: ICONS.settings  + ' Flags',
         type: 'flags',
-        extraText: `flags text`,
     },
     {
         text: ICONS.settings  + ' Comments',
         type: 'comments',
-        extraText: `comment text`,
     },
     {
         text: ICONS.settings  + ' Proposals',
         type: 'proposals',
-        extraText: `proposals text`,
+        extraText: `You can receive all updates only on selected proposals. Click "Add #" to add a proposal by ` +
+            `its number of "Remove #" to remove it from the watching list.`
     },
     {
         text: ICONS.settings  + ' Extra alerts',
         type: 'extra',
-        extraText: `extra text`,
+        extraText: `Extra alerts include warning messages of expiring simple/admin votes without a quorum, etc.`,
     },
     { text: ICONS.home + ' Main Menu' },
 ];
@@ -109,11 +105,21 @@ export const MESSAGES = {
     timezone: 'Enter your UTC timezone offset (e.g. -5 for New York, +7 for Bangkok):',
     digestTime: 'Enter the preferred time for a Digest in 24h format (e.g. 14:30):',
     proposal: 'Enter the proposal number for preview:',
+    add_proposal: 'Enter the proposal number to add to the watching list:',
+    remove_proposal: 'Enter the proposal number to remove from the watching list:',
+    no_proposals: 'You are not subscribed to any proposals yet.',
+    proposals_ids: 'Proposals you are currently subscribed to: ',
+    main_menu: 'Select an option for an instant update or Settings to customize the notifications:',
+    settings_menu: `Set up your timezone, or configure when you prefer to receive` +
+        ` updates for each notification type:`,
+    calendar_menu: 'Select on which weekdays you wish to receive updates for',
 }
 
 export const ERRORS = {
     incorrect_proposal: 'Wrong proposal id format. It should be a number.',
     not_found_proposal: 'Unable to find the specified proposal.',
+    existing_proposal: 'This proposal is already in the list.',
     time_format: 'Wrong time format.',
     timezone: 'Incorrect timezone offset.',
+    no_context: 'Wrong context for %d',
 }

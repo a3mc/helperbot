@@ -115,6 +115,18 @@ export class Interact {
             await ctx.reply( MESSAGES.digestTime, Markup.forceReply() );
         } );
 
+        // Add a proposal to watch.
+        this.bot.hears( 'Add #', async ( ctx ) => {
+            if ( !await this.verifyUser( ctx ) ) return;
+            await ctx.reply( MESSAGES.add_proposal, Markup.forceReply() );
+        } );
+
+        // Remove proposal from the list.
+        this.bot.hears( 'Remove #', async ( ctx ) => {
+            if ( !await this.verifyUser( ctx ) ) return;
+            await ctx.reply( MESSAGES.remove_proposal, Markup.forceReply() );
+        } );
+
         // Listen for weekdays commands in the current context menu.
         for ( const day in WEEKDAYS ) {
             this.bot.hears( [ICONS.completed + ' ' + day, ICONS.off + ' ' + day], async ( ctx ) => {
@@ -122,9 +134,8 @@ export class Interact {
                 if ( !await this.verifyUser( ctx ) ) return;
                 const context = await this.dbClient.getMenu( ctx.chat.id );
                 if ( !context.length || !CONTEXTS.includes( context[0].menu ) ) {
-                    logger.warn( 'No context found for %d', ctx.chat.id );
-                    await this.showMainMenu( ctx );
-                    return;
+                    logger.warn( ERRORS.no_context, ctx.chat.id );
+                    return await this.showMainMenu( ctx );
                 }
                 // Update user preferences with the inverted setting for day.
                 const preferences = await this.getUserPreferences( ctx.chat.id, context[0].menu );
@@ -141,10 +152,26 @@ export class Interact {
                 this.bot.hears( button.text, async ( ctx ) => {
                     if ( !await this.verifyUser( ctx ) ) return;
                     await this.dbClient.setMenu( ctx.chat.id, button.type );
-                    await this.replyOnAction( ctx, async () => {
-                        let text = this.digest.escapeText( button.extraText );
-                        return text;
-                    } );
+                    if ( button.extraText ) {
+                        await this.replyOnAction( ctx, () => {
+                            return this.digest.escapeText( button.extraText );
+                        } );
+                    }
+                    if ( button.type === 'proposals' ) {
+                        const proposalsIds = await this.dbClient.getProposals( ctx.chat.id );
+                        if ( !proposalsIds.length ) {
+                            await ctx.reply( MESSAGES.no_proposals );
+                        } else {
+                            let text: string[] = [];
+                            for ( const proposal of proposalsIds ) {
+                                const link = process.env.PORTAL_URL_PREFIX + process.env.PROPOSAL_URL + proposal;
+                                text.push( `[${ proposal }](${ link })` );
+                            }
+                            await ctx.replyWithMarkdownV2(
+                                this.digest.escapeText( MESSAGES.proposals_ids ) + text.join( ', ' )
+                            );
+                        }
+                    }
                     await this.showMenu( ctx );
                 } );
             }
@@ -164,7 +191,7 @@ export class Interact {
     async processReplies( ctx: any ): Promise<void> {
         const context = await this.dbClient.getMenu( ctx.chat.id );
         if ( !context.length ) {
-            logger.warn( 'Wrong context for %d', ctx.chat.id );
+            logger.warn( ERRORS.no_context, ctx.chat.id );
             return await this.showMainMenu( ctx );
         }
 
@@ -226,6 +253,34 @@ export class Interact {
                 `${ this.digest.escapeText( result.proposal.short_description.substring( 0, 1024 ) + '...' ) }`
             );
             return await this.showMenu( ctx );
+        } else if (
+            ctx.message.reply_to_message.text === MESSAGES.add_proposal &&
+            context[0].menu === 'proposals'
+        ) {
+            const proposalId = parseInt( ctx.message.text );
+            if ( isNaN( proposalId ) || proposalId < 0 ) {
+                await ctx.reply( ERRORS.incorrect_proposal );
+                return await this.showMenu( ctx );
+            }
+            const proposalIds = await this.dbClient.getProposals( ctx.chat.id );
+            if ( proposalIds.includes( proposalId ) ) {
+                await ctx.reply( ERRORS.existing_proposal );
+                return await this.showMenu( ctx );
+            }
+
+            await this.dbClient.saveProposal( ctx.chat.id, proposalId );
+            return await this.showMenu( ctx );
+        } else if (
+            ctx.message.reply_to_message.text === MESSAGES.remove_proposal &&
+            context[0].menu === 'proposals'
+        ) {
+            const proposalId = parseInt( ctx.message.text );
+            if ( isNaN( proposalId ) || proposalId < 0 ) {
+                await ctx.reply( ERRORS.incorrect_proposal );
+                return await this.showMenu( ctx );
+            }
+            await this.dbClient.removeProposal( ctx.chat.id, proposalId );
+            return await this.showMenu( ctx );
         }
     }
 
@@ -273,19 +328,13 @@ export class Interact {
     // Default home menu with instant actions.
     async showMainMenu( ctx: any ): Promise<void> {
         await this.dbClient.setMenu( ctx.chat.id, 'main' );
-        await ctx.replyWithMarkdown(
-            'Select an option:',
-            this.mainMenuButtons,
-        );
+        await ctx.replyWithMarkdown( MESSAGES.main_menu, this.mainMenuButtons );
     }
 
     // Settings menu.
     async showSettingsMenu( ctx: any ): Promise<void> {
         await this.dbClient.setMenu( ctx.chat.id, 'settings' );
-        await ctx.replyWithMarkdown(
-            'Select an option:',
-            this.alertsMenuButtons,
-        );
+        await ctx.replyWithMarkdown( MESSAGES.settings_menu, this.alertsMenuButtons );
     }
 
     // Display a calendar menu for the settings sub-pages. Type defines the menu context.
@@ -303,20 +352,26 @@ export class Interact {
             { text: ( userPreferences.saturday ? ICONS.completed : ICONS.off ) + ' SA' },
         ];
 
-        // Only Digest has a Time setting. Other notifications are delivered immediately.
+        // Only Digest has a Time setting. Other notifications are delivered immediately on selected weekdays.
         if ( type === 'digest' ) {
             calendarButtons.push( { text: ICONS.simple + ' Time' } );
         }
+
+        if ( type === 'proposals' ) {
+            calendarButtons.push(
+                { text: 'Add #' },
+                { text: 'Remove #' },
+            );
+        }
+
         calendarButtons.push(
             { text: ICONS.settings + ' Settings' },
             { text: ICONS.home + ' Main Menu' }
         );
 
         const calendarMenuButtons = Markup.keyboard( calendarButtons, { columns: 7 } );
-
-        // FIXME: editMessageReplyMarkup
-        const message = await ctx.replyWithMarkdown(
-            'Set schedule:',
+        await ctx.replyWithMarkdown(
+            MESSAGES.calendar_menu + ' ' + type.toUpperCase() + ':',
             calendarMenuButtons,
         );
     }
@@ -344,7 +399,6 @@ export class Interact {
     // Check if user can use this bot.
     async verifyUser( ctx ): Promise<boolean> {
         const userId = ( await ctx.getChat() ).id;
-
         // Check if this user is already verified.
         if ( this.verifiedUsers.includes( userId ) ) {
             return true;

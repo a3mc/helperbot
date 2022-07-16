@@ -5,10 +5,10 @@ export function checkTimeFormat( time: string ): boolean {
     if ( !time.match( /\d\d:\d\d/ ) ) return false;
     const timeArr = time.split( ':' );
     if (
-        parseInt( time[0] ) > 23 ||
-        parseInt( time[0] ) < 0 ||
-        parseInt( time[1] ) < 0 ||
-        parseInt( time[1] ) > 59
+        parseInt( timeArr[0] ) > 23 ||
+        parseInt( timeArr[0] ) < 0 ||
+        parseInt( timeArr[1] ) < 0 ||
+        parseInt( timeArr[1] ) > 59
     ) {
         return false;
     }
