@@ -110,3 +110,10 @@ export const MESSAGES = {
     digestTime: 'Enter the preferred time for a Digest in 24h format (e.g. 14:30):',
     proposal: 'Enter the proposal number for preview:',
 }
+
+export const ERRORS = {
+    incorrect_proposal: 'Wrong proposal id format. It should be a number.',
+    not_found_proposal: 'Unable to find the specified proposal.',
+    time_format: 'Wrong time format.',
+    timezone: 'Incorrect timezone offset.',
+}

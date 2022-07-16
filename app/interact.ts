@@ -1,16 +1,15 @@
 import { Context, Markup, Telegraf } from 'telegraf';
 import { Update } from 'typegram';
 import { logger } from './logger';
-import { ALERTS_BUTTONS, CONTEXTS, ICONS, MAIN_BUTTONS, MESSAGES, WEEKDAYS } from './constants';
+import { ALERTS_BUTTONS, CONTEXTS, ERRORS, ICONS, MAIN_BUTTONS, MESSAGES, WEEKDAYS } from './constants';
 import { Digest } from './digest';
 import moment from 'moment';
 import { DbClient } from './db-client';
-
+import { checkTimeFormat, checkTimezoneFormat } from './validators';
 
 export class Interact {
 
     cantPostChatIds: number[] = []; // Temporary paused users.
-    waitingForProposalPreviewNumberChatIds: number[] = []; // Chat ids that are waiting for proposal #.
     verifiedUsers: number[] = []; // Remember if user is a member of main chat, so we don't check it each time.
     actionDelayTime = 400; // User can trigger immediate action not more often than this amount of time in ms.
     mainMenuButtons = Markup.keyboard( MAIN_BUTTONS, { columns: 2 } );
@@ -127,7 +126,6 @@ export class Interact {
                     await this.showMainMenu( ctx );
                     return;
                 }
-
                 // Update user preferences with the inverted setting for day.
                 const preferences = await this.getUserPreferences( ctx.chat.id, context[0].menu );
                 await this.setUserPreferences( ctx, context[0].menu, {
@@ -147,73 +145,18 @@ export class Interact {
                         let text = this.digest.escapeText( button.extraText );
                         return text;
                     } );
-                    await this.showCalendarMenu( ctx, button.type );
+                    await this.showMenu( ctx );
                 } );
             }
         }
 
         this.bot.on( 'text', async ( ctx ) => {
             if ( !await this.verifyUser( ctx ) ) return;
-
             // Check if it's a user reply on a request.
             if ( ctx.message.reply_to_message ) {
                 return await this.processReplies( ctx );
             }
-
-            console.log( 'text', ctx.message.text );
-
-            // Check if it's an unknown command and redraw the menu if needed.
-            let unknownMessage = true;
-            for ( const command of MAIN_BUTTONS ) {
-                if ( command.text === ctx.message.text ) {
-                    unknownMessage = false;
-                }
-            }
-            for ( const command of ALERTS_BUTTONS ) {
-                if ( command.text === ctx.message.text ) {
-                    unknownMessage = false;
-                }
-            }
-
-            let proposalId: number;
-            if ( this.waitingForProposalPreviewNumberChatIds.includes( ctx.chat.id ) ) {
-                this.reset( ctx );
-                proposalId = parseInt( ctx.message.text );
-                if ( !proposalId ) {
-                    ctx.reply( 'Incorrect proposal number.' );
-                    await this.showMenu( ctx );
-                    return;
-                }
-            } else {
-                if ( unknownMessage ) {
-                    await this.showMenu( ctx );
-                }
-                return;
-            }
-
-            const url = process.env.JSON_PROPOSAL_URL + proposalId;
-
-            const result = await this.digest.apiClient.get( url ).catch(
-                async error => {
-                    logger.warn( error.toString().substring( 0, 255 ) );
-                    ctx.reply( 'Unable to find the specified proposal.' );
-                    await this.showMenu( ctx );
-                }
-            );
-
-            if ( !result.success ) {
-                ctx.reply( 'Unable to find the specified proposal.' );
-                await this.showMenu( ctx );
-                return;
-            }
-
-            const link = process.env.PORTAL_URL_PREFIX + process.env.PROPOSAL_URL + proposalId;
-
-            await ctx.replyWithMarkdownV2(
-                `[\\#${ proposalId } ` +
-                `__${ this.digest.escapeText( result.proposal.title ) }__](${ link })\n\n` +
-                `${ this.digest.escapeText( result.proposal.short_description.substring( 0, 2048 ) + '...' ) }`
-            );
+            // Just open a menu of unrecognised text input.
             await this.showMenu( ctx );
         } );
     }
@@ -222,8 +165,7 @@ export class Interact {
         const context = await this.dbClient.getMenu( ctx.chat.id );
         if ( !context.length ) {
             logger.warn( 'Wrong context for %d', ctx.chat.id );
-            await this.showMainMenu( ctx );
-            return;
+            return await this.showMainMenu( ctx );
         }
 
         // Setting Digest post time
@@ -231,29 +173,27 @@ export class Interact {
             ctx.message.reply_to_message.text === MESSAGES.digestTime &&
             context[0].menu === 'digest'
         ) {
-            if ( !this.checkTimeFormat( ctx.message.text ) ) {
-                await ctx.reply( 'Wrong time format.' );
-                await this.showMenu( ctx );
-                return;
+            if ( !checkTimeFormat( ctx.message.text ) ) {
+                await ctx.reply( ERRORS.time_format );
+                return await this.showMenu( ctx );
             }
             // Save time in db.
-            await this.setUserPreferences( ctx, 'digest', {
+            return await this.setUserPreferences( ctx, 'digest', {
                 pref: 'post_time',
                 value: ctx.message.text
             } );
-            // Setting local timezone offset
         } else if (
             ctx.message.reply_to_message.text === MESSAGES.timezone &&
             context[0].menu === 'settings'
         ) {
+            // Setting local timezone offset
             const offset = parseInt( ctx.message.text );
-            if ( this.checkTimezoneFormat( offset ) ) {
-                await ctx.reply( 'Incorrect timezone offset.' );
-                await this.showMenu( ctx );
-                return;
+            if ( checkTimezoneFormat( offset ) ) {
+                await ctx.reply( ERRORS.timezone );
+                return await this.showMenu( ctx );
             }
             // Save timezone UTC offset in db.
-            await this.setUserPreferences( ctx, 'general', {
+            return await this.setUserPreferences( ctx, 'general', {
                 pref: 'timezone',
                 value: offset,
             } )
@@ -261,36 +201,35 @@ export class Interact {
             ctx.message.reply_to_message.text === MESSAGES.proposal &&
             context[0].menu === 'main'
         ) {
-            console.log('proposal')
+            const proposalId = parseInt( ctx.message.text );
+            if ( isNaN( proposalId ) || proposalId < 0 ) {
+                await ctx.reply( ERRORS.incorrect_proposal );
+                return await this.showMenu( ctx );
+            }
+
+            const url = process.env.JSON_PROPOSAL_URL + proposalId;
+            const result = await this.digest.apiClient.get( url ).catch(
+                async error => {
+                    logger.warn( error.toString().substring( 0, 255 ) );
+                }
+            );
+
+            if ( !result.success ) {
+                await ctx.reply( ERRORS.not_found_proposal );
+                return await this.showMenu( ctx );
+            }
+
+            const link = process.env.PORTAL_URL_PREFIX + process.env.PROPOSAL_URL + proposalId;
+            await ctx.replyWithMarkdownV2(
+                `[\\#${ proposalId } ` +
+                `__${ this.digest.escapeText( result.proposal.title ) }__](${ link })\n\n` +
+                `${ this.digest.escapeText( result.proposal.short_description.substring( 0, 1024 ) + '...' ) }`
+            );
+            return await this.showMenu( ctx );
         }
-
-        await this.showMenu( ctx );
     }
 
-    // Validate entered time string. It should be strictly in 'hh:mm' format.
-    checkTimeFormat( time: string ): boolean {
-        if ( !time.match( /\d\d:\d\d/ ) ) return false;
-        const timeArr = time.split( ':' );
-        if (
-            parseInt( time[0] ) > 23 ||
-            parseInt( time[0] ) < 0 ||
-            parseInt( time[1] ) < 0 ||
-            parseInt( time[1] ) > 59
-        ) {
-            return false;
-        }
-        return true;
-    }
-
-    // Validate the timezone offset.
-    checkTimezoneFormat( offset: number ): boolean {
-        return (
-            isNaN( offset ) ||
-            offset < -12 ||
-            offset > 12
-        );
-    }
-
+    // Try to get saved user preferences for a given type from db.
     async getUserPreferences( chatId: number, type: string ): Promise<any> {
         const preferences = await this.dbClient.getPreferences( chatId, type );
         // Return default if not found.
@@ -315,9 +254,10 @@ export class Interact {
     async setUserPreferences( ctx: any, type: string, preference: any ): Promise<void> {
         // Save and redraw the menu with the new value.
         await this.dbClient.setPreferences( ctx.chat.id, type, preference );
-        await this.showCalendarMenu( ctx, type );
+        await this.showMenu( ctx );
     }
 
+    // Based on the current menu context it decides which menu to display.
     async showMenu( ctx: any ): Promise<void> {
         const context = await this.dbClient.getMenu( ctx.chat.id );
         if ( context.length ) {
@@ -330,19 +270,21 @@ export class Interact {
         await this.showMainMenu( ctx );
     }
 
-    async showSettingsMenu( ctx: any ): Promise<void> {
-        await this.dbClient.setMenu( ctx.chat.id, 'settings' );
-        await ctx.replyWithMarkdown(
-            'Select an option:',
-            this.alertsMenuButtons,
-        );
-    }
-
+    // Default home menu with instant actions.
     async showMainMenu( ctx: any ): Promise<void> {
         await this.dbClient.setMenu( ctx.chat.id, 'main' );
         await ctx.replyWithMarkdown(
             'Select an option:',
             this.mainMenuButtons,
+        );
+    }
+
+    // Settings menu.
+    async showSettingsMenu( ctx: any ): Promise<void> {
+        await this.dbClient.setMenu( ctx.chat.id, 'settings' );
+        await ctx.replyWithMarkdown(
+            'Select an option:',
+            this.alertsMenuButtons,
         );
     }
 
@@ -381,8 +323,6 @@ export class Interact {
 
     // Launch an immediate action when called from the main menu.
     async replyOnAction( ctx: any, method: Function ): Promise<void> {
-        this.reset( ctx );
-
         // Prevent too often actions by temporary saving the chat id.
         if ( this.cantPostChatIds.includes( ctx.chat.id ) ) {
             return;
@@ -424,19 +364,11 @@ export class Interact {
             this.verifiedUsers.push( userId );
         }
 
-        // Ignore old messages in case of bot reload happened.
+        // Ignore old messages in case of bot reload or network errors occurred.
         if ( moment.unix( ctx.message.date ).utc().diff( moment().utc(), 'seconds' ) < -60 ) {
             logger.warn( 'Message older than 60 seconds detected, ignoring.' );
             return false;
         }
         return true;
-    }
-
-    reset( ctx: any ) {
-        // Remove user from the list who's waiting to post the proposal id.
-        const index = this.waitingForProposalPreviewNumberChatIds.indexOf( ctx.chat.id );
-        if ( index !== -1 ) {
-            this.waitingForProposalPreviewNumberChatIds.splice( index, 1 );
-        }
     }
 }
