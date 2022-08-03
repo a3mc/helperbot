@@ -20,6 +20,7 @@ export const ICONS = {
     comment: '💬',
     informal_formal: '🔶',
     off: '✖️',
+    list: '🗒',
 };
 
 // Post types that are stored in the database.
@@ -37,6 +38,7 @@ export const VOTE_TYPES = {
     formal: 1,
 };
 
+// Buttons for the main menu.
 export const MAIN_BUTTONS = [
     { text: ICONS.informal + ' Informal' },
     { text: ICONS.formal + ' Formal' },
@@ -47,9 +49,11 @@ export const MAIN_BUTTONS = [
     { text: ICONS.settings + ' Settings' },
 ];
 
+// Buttons for the settings menu.
+// extraText is an info message displayed once button is clicked.
 export const ALERTS_BUTTONS = [
     {
-        text: ICONS.settings  + ' Timezone'
+        text: ICONS.settings  + ' Timezone',
     },
     {
         text: ICONS.settings + ' Digest',
@@ -58,21 +62,14 @@ export const ALERTS_BUTTONS = [
     {
         text: ICONS.settings  + ' Informal/Formal',
         type: 'informal-formal',
-        extraText: 'You will receive a message once any proposal enters the Informal or Formal voting stage.'
-    },
-    {
-        text: ICONS.settings  + ' Flags',
-        type: 'flags',
-    },
-    {
-        text: ICONS.settings  + ' Comments',
-        type: 'comments',
+        extraText: 'You will receive a message once any proposal enters the Informal or Formal voting stage.',
     },
     {
         text: ICONS.settings  + ' Proposals',
         type: 'proposals',
-        extraText: `You can receive all updates only on selected proposals. Click "Add #" to add a proposal by ` +
-            `its number of "Remove #" to remove it from the watching list.`
+        extraText: `You can receive updates like entering a new voting phase only on selected proposals. ` +
+            `Click "Add #" to add a proposal by ` +
+            `its number or "Remove #" to remove it from the watching list.`,
     },
     {
         text: ICONS.settings  + ' Extra alerts',
@@ -82,6 +79,7 @@ export const ALERTS_BUTTONS = [
     { text: ICONS.home + ' Main Menu' },
 ];
 
+// These context items describe in which menu the user is currently located.
 export const CONTEXTS = [
     'digest',
     'informal-formal',
@@ -91,6 +89,7 @@ export const CONTEXTS = [
     'extra',
 ];
 
+// Week days buttons for settings menus.
 export const WEEKDAYS = {
     SU: 'sunday',
     MO: 'monday',
@@ -101,6 +100,18 @@ export const WEEKDAYS = {
     SA: 'saturday',
 }
 
+// An array of weekdays to be used in mapping.
+export const WEEKDAYS_ARRAY = [
+    'sunday',
+    'monday',
+    'tuesday',
+    'wednesday',
+    'thursday',
+    'friday',
+    'saturday',
+]
+
+// Various info messages, that are posted to the chat in different cases.
 export const MESSAGES = {
     timezone: 'Enter your UTC timezone offset (e.g. -5 for New York, +7 for Bangkok):',
     digestTime: 'Enter the preferred time for a Digest in 24h format (e.g. 14:30):',
@@ -110,11 +121,12 @@ export const MESSAGES = {
     no_proposals: 'You are not subscribed to any proposals yet.',
     proposals_ids: 'Proposals you are currently subscribed to: ',
     main_menu: 'Select an option for an instant update or Settings to customize the notifications:',
-    settings_menu: `Set up your timezone, or configure when you prefer to receive` +
-        ` updates for each notification type:`,
+    settings_menu: `Set up your timezone, or configure when you prefer to receive ` +
+        `updates for each notification type:`,
     calendar_menu: 'Select on which weekdays you wish to receive updates for',
 }
 
+// Error messages that are posted to the chat.
 export const ERRORS = {
     incorrect_proposal: 'Wrong proposal id format. It should be a number.',
     not_found_proposal: 'Unable to find the specified proposal.',

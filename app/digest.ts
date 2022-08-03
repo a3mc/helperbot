@@ -45,7 +45,7 @@ export class Digest {
     }
 
     // When a proposal enters a new phase (Informal or Formal) we make a post about that immediately.
-    async newProposal(): Promise<any> {
+    async newProposal( chatId = 0 ): Promise<any> {
         const informal = ( await this.informalVotes() );
         const formal = ( await this.formalVotes() );
         let newInformal = [];

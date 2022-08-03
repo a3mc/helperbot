@@ -5,5 +5,6 @@ create table if not exists posts
     date        timestamp default CURRENT_TIMESTAMP not null,
     result      tinyint   default 0                 not null,
     proposal_id int       default 0                 not null,
-    vote_type   smallint  default 0                 not null
+    vote_type   smallint  default 0                 not null,
+    chat_id     bigint    default 0                 not null
 );

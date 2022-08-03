@@ -37,6 +37,9 @@ export class Interact {
             await this.replyOnAction( ctx, async () => {
                 const informal = await this.digest.informalVotes();
                 let text = '__Active Informal__\n\n';
+                if ( !informal.length ) {
+                    text += this.digest.escapeText( 'There\'s nothing in Informal now' );
+                }
                 for ( const vote of informal ) {
                     text += this.digest.voteToText( vote );
                 }
@@ -49,6 +52,9 @@ export class Interact {
             await this.replyOnAction( ctx, async () => {
                 const formal = await this.digest.formalVotes();
                 let text = '__Active Formal__\n\n';
+                if ( !formal.length ) {
+                   text += this.digest.escapeText( 'There\'s nothing in Formal now' );
+                }
                 for ( const vote of formal ) {
                     text += this.digest.voteToText( vote );
                 }
@@ -127,6 +133,12 @@ export class Interact {
             await ctx.reply( MESSAGES.remove_proposal, Markup.forceReply() );
         } );
 
+        // List proposals list user is subscribed to.
+        this.bot.hears( ICONS.list + ' List', async ( ctx ) => {
+            if ( !await this.verifyUser( ctx ) ) return;
+            await this.showProposalsList( ctx );
+        } );
+
         // Listen for weekdays commands in the current context menu.
         for ( const day in WEEKDAYS ) {
             this.bot.hears( [ICONS.completed + ' ' + day, ICONS.off + ' ' + day], async ( ctx ) => {
@@ -158,19 +170,7 @@ export class Interact {
                         } );
                     }
                     if ( button.type === 'proposals' ) {
-                        const proposalsIds = await this.dbClient.getProposals( ctx.chat.id );
-                        if ( !proposalsIds.length ) {
-                            await ctx.reply( MESSAGES.no_proposals );
-                        } else {
-                            let text: string[] = [];
-                            for ( const proposal of proposalsIds ) {
-                                const link = process.env.PORTAL_URL_PREFIX + process.env.PROPOSAL_URL + proposal;
-                                text.push( `[${ proposal }](${ link })` );
-                            }
-                            await ctx.replyWithMarkdownV2(
-                                this.digest.escapeText( MESSAGES.proposals_ids ) + text.join( ', ' )
-                            );
-                        }
+                        await this.showProposalsList( ctx );
                     }
                     await this.showMenu( ctx );
                 } );
@@ -267,8 +267,8 @@ export class Interact {
                 await ctx.reply( ERRORS.existing_proposal );
                 return await this.showMenu( ctx );
             }
-
             await this.dbClient.saveProposal( ctx.chat.id, proposalId );
+            await this.showProposalsList( ctx );
             return await this.showMenu( ctx );
         } else if (
             ctx.message.reply_to_message.text === MESSAGES.remove_proposal &&
@@ -280,7 +280,29 @@ export class Interact {
                 return await this.showMenu( ctx );
             }
             await this.dbClient.removeProposal( ctx.chat.id, proposalId );
+            await this.showProposalsList( ctx );
             return await this.showMenu( ctx );
+        }
+    }
+
+    async showProposalsList( ctx: any ): Promise<void> {
+        const proposalsIds = await this.dbClient.getProposals( ctx.chat.id );
+        if ( !proposalsIds.length ) {
+            await ctx.reply( MESSAGES.no_proposals );
+        } else {
+            proposalsIds.sort( ( a: number, b: number ) => {
+                if ( a > b ) return 1;
+                if ( a < b ) return -1;
+                return 0;
+            } );
+            let text: string[] = [];
+            for ( const proposal of proposalsIds ) {
+                const link = process.env.PORTAL_URL_PREFIX + process.env.PROPOSAL_URL + proposal;
+                text.push( `[${ proposal }](${ link })` );
+            }
+            await ctx.replyWithMarkdownV2(
+                this.digest.escapeText( MESSAGES.proposals_ids ) + text.join( ', ' )
+            );
         }
     }
 
@@ -361,6 +383,7 @@ export class Interact {
             calendarButtons.push(
                 { text: 'Add #' },
                 { text: 'Remove #' },
+                { text: ICONS.list + ' List' },
             );
         }
 
