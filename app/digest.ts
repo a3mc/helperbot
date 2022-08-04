@@ -3,8 +3,9 @@ import moment from 'moment';
 import { DbClient } from './db-client';
 import { ICONS, POST_TYPES, VOTE_TYPES } from './constants';
 
+// Class to collect data and generate post messages.
 export class Digest {
-    protected apiClient = new ApiClient();
+    public apiClient = new ApiClient();
     protected dbClient = new DbClient();
 
     // Main method to create a Daily Digest. It fetches the data from the API, passes it to the methods that generate
@@ -45,7 +46,8 @@ export class Digest {
     }
 
     // When a proposal enters a new phase (Informal or Formal) we make a post about that immediately.
-    async newProposal(): Promise<any> {
+    // "proposalMode" is a flag to filter proposals based on user's preferences.
+    async newProposal( chatId = 0, proposalMode = false ): Promise<any> {
         const informal = ( await this.informalVotes() );
         const formal = ( await this.formalVotes() );
         let newInformal = [];
@@ -54,13 +56,27 @@ export class Digest {
         // Check if posts for the votes were already made.
         // Ids and post types are stored in the database, so we don't make the same announcement twice.
         for ( const vote of informal ) {
-            if ( !await this.dbClient.checkPost( vote.id, VOTE_TYPES.informal ) ) {
-                newInformal.push( vote );
+            if ( !await this.dbClient.checkPost( vote.id, VOTE_TYPES.informal, POST_TYPES.new_simple, chatId ) ) {
+                if ( proposalMode ) {
+                    const proposalsIds: number[] = await this.dbClient.getProposals( chatId );
+                    if ( proposalsIds.includes( vote.proposal_id ) ) {
+                        newInformal.push( vote );
+                    }
+                } else {
+                    newInformal.push( vote );
+                }
             }
         }
         for ( const vote of formal ) {
-            if ( !await this.dbClient.checkPost( vote.id, VOTE_TYPES.formal ) ) {
-                newFormal.push( vote );
+            if ( !await this.dbClient.checkPost( vote.id, VOTE_TYPES.formal, POST_TYPES.new_simple, chatId ) ) {
+                if ( proposalMode ) {
+                    const proposalsIds: number[] = await this.dbClient.getProposals( chatId );
+                    if ( proposalsIds.includes( vote.proposal_id ) ) {
+                        newFormal.push( vote );
+                    }
+                } else {
+                    newFormal.push( vote );
+                }
             }
         }
 
@@ -324,7 +340,7 @@ export class Digest {
             text += `: \*${ this.escapeText( vote.result.toUpperCase() ) }* \_${ vote.type }_`;
         }
 
-        text += `\n\n`;
+        text += `\n\n`;``
         return text;
     }
 

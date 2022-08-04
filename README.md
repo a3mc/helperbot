@@ -75,7 +75,11 @@ There's also a post about any voting that failed because of no quorum.
 
 All messages are posted to a private Telegram chat, specified in the `.env` file.
 
-Some interactivity with ability to customize the alerts will be delivered in the next Milestone of the current project.
+### Interactive part
+
+When the bot is accessed directly by its name, it allows user to start a private chat and modify the subscription settings or get the information immediately. 
+
+The bot verifies if user is a member of the channel specified in `.env`. If not, it declines any requests. If user can use the bot, after pressing Start button a menu with the set of buttons is displayed. User can trigger some actions, for example get a Digest right at the moment. User can also use settings to set up custom subscriptions. For example, user can receive Digest on specific weekdays, at specific time and timezone. By using custom subscription user can mute the main notification channel and get updates only on the chosen weekdays instead.
 
 ### Contributing and Code of Conduct
 
@@ -83,9 +87,11 @@ You are welcome to add your suggestions and to contribute to the project. Please
 
 Please follow the best practices, follow the code structure and make sure that your suggestion is really valuable for the project and well-formed. When you open an issue, please make sure you provide enough details on how to reproduce it. Don't use explicit lexis and be polite to other members.
 
+You can find full details in the `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md` files.
+
 ### License
 
-This project is licensed under MIT license.
+This project is licensed under MIT license. 
 
 ### About us:
 * [ART3MIS.CLOUD](https://art3mis.cloud)

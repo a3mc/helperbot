@@ -5,10 +5,11 @@ import { DbClient } from './db-client';
 import moment from 'moment';
 import { logger } from './logger';
 import { ICONS, POST_TYPES, VOTE_TYPES } from './constants';
+import { Interact } from "./interact";
 
 dotenv.config();
 
-// The Thelegram bot object wrapped into Telegraf library.
+// The Telegram bot object wrapped into Telegraf library.
 const bot = new Telegraf( process.env.BOT_TOKEN )
 
 // Class that gathers, filters information and creates text using Markdown v.2 syntax.
@@ -27,7 +28,7 @@ async function checkLoop(): Promise<void> {
     // Post immediately about completed votes failed because of no-quorum.
     await failedListPost();
 
-    // Extra alert about active Simple votes with now quorum.
+    // Extra alert about active Simple votes with no quorum.
     await noQuorumListPost();
 
     // If it's time for a digest, and it wasn't posted already.
@@ -38,22 +39,32 @@ async function checkLoop(): Promise<void> {
         await simpleAdminListPost();
     }
 
-    // Temporarily commented out an extra post about active simple, until decided that it makes sense.
-    // As we already post about each new formal and informal start, it looks a bit duplicated in the channel.
+    // Specific proposals that user follows entered a new informal/formal voting phase.
+    const chatIdsToPostNewCustom = await dbClient.subscribedChats( 'proposals' );
+    for ( const chatId of chatIdsToPostNewCustom ) {
+        await newProposalPost( chatId, true );
+    }
 
-    //if ( await checkForDailyDigestTime( true ) ) {
-        // Post simple/admin votes list again in 12h after the last post.
-        //await simpleAdminListPost();
-    //}
+    // Send notifications about any proposals entered informal or formal voting.
+    const chatIdsToPostNew = await dbClient.subscribedChats( 'informal-formal' );
+    for ( const chatId of chatIdsToPostNew ) {
+        await newProposalPost( chatId );
+    }
+
+    // Send private Digest to the subscribers, according to their settings.
+    const chatIdsToPostDigest = await dbClient.subscribedChats( 'digest' );
+    for ( const chatId of chatIdsToPostDigest ) {
+        await digestPost( chatId );
+    }
 }
 
 // Make the Digest post, unless the generated text is empty.
-async function digestPost(): Promise<void> {
+async function digestPost( chatId = 0 ): Promise<void> {
     // Create the Digest.
     let digestText = await digest.createDigest();
     if ( digestText.length ) {
         digestText = ICONS.digest + ' \*Daily Digest*\n\n' + digestText;
-        await postMessage( digestText, POST_TYPES.digest );
+        await postMessage( digestText, POST_TYPES.digest, [], [], chatId );
     }
 }
 
@@ -95,16 +106,17 @@ async function failedListPost(): Promise<void> {
 }
 
 // Post about the proposals that entered a new voting phase and pass their ids, so we can save them.
-async function newProposalPost(): Promise<void> {
-    const newVotes = await digest.newProposal();
+async function newProposalPost( chatId = 0, proposalsMode = false ): Promise<void> {
+    const newVotes = await digest.newProposal( chatId, proposalsMode );
     if ( newVotes.text.length ) {
         // Check if there was already a post about each new proposal.
-        logger.info( 'New votes moved to informal or formal' );
+        logger.info( 'New votes moved to informal or formal for ' + chatId );
         await postMessage(
             newVotes.text,
             POST_TYPES.new_simple,
             newVotes.informalIds,
-            newVotes.formalIds
+            newVotes.formalIds,
+            chatId,
         );
     }
 }
@@ -114,7 +126,8 @@ async function postMessage(
     digestText: string,
     type: number,
     informalIds: number[] = [],
-    formalIds: number[] = []
+    formalIds: number[] = [],
+    chatId = 0,
 ): Promise<void> {
     if ( !digestText.trim().length ) {
         // Nothing to post.
@@ -129,10 +142,10 @@ async function postMessage(
         digestText = digestText.substring( 0, digestText.lastIndexOf( '\n' ) ) + '…';
     }
 
-    logger.debug( digestText );
+    logger.debug( 'Posting to: ' + chatId + ' ' + digestText );
 
     // Sent the message to Telegram to the specified Channel (Chat) and get the result.
-    const result = await bot.telegram.sendMessage( Number( process.env.CHAT_ID ), digestText, {
+    const result = await bot.telegram.sendMessage( chatId || Number( process.env.CHAT_ID ), digestText, {
         parse_mode: 'MarkdownV2',
     } ).catch( error => {
         logger.warn( error );
@@ -144,28 +157,28 @@ async function postMessage(
         // Save ids of new Simple votes, to prevent posting about them again.
         if ( type === POST_TYPES.new_simple ) {
             for ( const id of informalIds ) {
-                await dbClient.post( type, 1, id, VOTE_TYPES.informal );
+                await dbClient.post( type, 1, id, VOTE_TYPES.informal, chatId );
             }
             for ( const id of formalIds ) {
-                await dbClient.post( type, 1, id, VOTE_TYPES.formal );
+                await dbClient.post( type, 1, id, VOTE_TYPES.formal, chatId );
             }
         } else if ( type === POST_TYPES.failed_no_quorum || type === POST_TYPES.expiring_simple ) {
             // Save ids of failed no-quorum votes.
             for ( const id of informalIds ) {
-                await dbClient.post( type, 1, id, VOTE_TYPES.informal );
+                await dbClient.post( type, 1, id, VOTE_TYPES.informal, chatId );
             }
             for ( const id of formalIds ) {
-                await dbClient.post( type, 1, id, VOTE_TYPES.formal );
+                await dbClient.post( type, 1, id, VOTE_TYPES.formal, chatId );
             }
         } else {
             // Save that digest was posted successfully.
-            await dbClient.post( type, 1 );
+            await dbClient.post( type, 1, 0, 0, chatId );
         }
 
     } else {
-        // Save that there was a failed attempt to post the digest.
+        // Save that there was a failed attempt to post the message.
         logger.error( 'Failed to post message.' );
-        await dbClient.post( type, 0 );
+        await dbClient.post( type, 0, 0 , 0 , chatId );
     }
 }
 
@@ -204,9 +217,13 @@ async function checkForDailyDigestTime( simple = false ): Promise<boolean> {
     return true;
 }
 
+// Handle interactive part.
+new Interact( bot, digest, dbClient );
+
 // Launch the bot.
 bot.launch().then( async () => {
     logger.info( 'Bot started successfully.' );
+
     await checkLoop()
         .catch( error => {
             logger.error( error );
