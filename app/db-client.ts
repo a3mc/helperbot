@@ -4,6 +4,7 @@ import mysql from 'mysql';
 import util from 'util';
 import { POST_TYPES, WEEKDAYS, WEEKDAYS_ARRAY } from './constants';
 
+// Helper class for database queries and related manipulations with data.
 export class DbClient {
     // Create the connection pool with the credentials defined in .env
     protected pool = mysql.createPool( {
@@ -240,6 +241,7 @@ export class DbClient {
                 // Check if the post was already made.
                 // That happens to cover the scenario if system was down for some time, and to prevent double post.
                 let postedAlready = false;
+                // Check time settings and if post made for Digest. For other types return the full list of subscribers.
                 if ( prefType === 'digest' ) {
                     const postTimeSetting = chat.post_time.split( ':' );
                     const postTime = moment().utcOffset( timezoneOffset )
@@ -247,6 +249,7 @@ export class DbClient {
                         .minutes( postTimeSetting[1] )
                         .seconds( 0 );
 
+                    // If the now-time is in range of the scheduled time and defined window.
                     if (
                         moment().utcOffset( timezoneOffset ).isSameOrAfter( postTime ) &&
                         moment().utcOffset( timezoneOffset ).isBefore(
@@ -257,10 +260,9 @@ export class DbClient {
                     } else {
                         postedAlready = true;
                     }
-                } else {
-                    // postedAlready = await this.checkPost()
                 }
 
+                // Unless it doesnt pass the digest check, add it to the array.
                 if ( !postedAlready ) {
                     // Add chat id to the array - this user has to receive a post now.
                     chatIds.push( chat.chat_id );

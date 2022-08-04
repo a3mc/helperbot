@@ -12,6 +12,7 @@ const migrationFiles = [
     '0_create_table_posts.sql',
     '1_create_table_preferences.sql',
     '2_create_table_proposals.sql',
+    '3_create_table_context.sql',
 ];
 
 // Read each file and pass it to dbClient, so it performs the query.

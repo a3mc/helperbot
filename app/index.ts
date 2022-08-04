@@ -39,6 +39,18 @@ async function checkLoop(): Promise<void> {
         await simpleAdminListPost();
     }
 
+    // Specific proposals that user follows entered a new informal/formal voting phase.
+    const chatIdsToPostNewCustom = await dbClient.subscribedChats( 'proposals' );
+    for ( const chatId of chatIdsToPostNewCustom ) {
+        await newProposalPost( chatId, true );
+    }
+
+    // Send notifications about any proposals entered informal or formal voting.
+    const chatIdsToPostNew = await dbClient.subscribedChats( 'informal-formal' );
+    for ( const chatId of chatIdsToPostNew ) {
+        await newProposalPost( chatId );
+    }
+
     // Send private Digest to the subscribers, according to their settings.
     const chatIdsToPostDigest = await dbClient.subscribedChats( 'digest' );
     for ( const chatId of chatIdsToPostDigest ) {
@@ -94,11 +106,11 @@ async function failedListPost(): Promise<void> {
 }
 
 // Post about the proposals that entered a new voting phase and pass their ids, so we can save them.
-async function newProposalPost( chatId = 0 ): Promise<void> {
-    const newVotes = await digest.newProposal( chatId );
+async function newProposalPost( chatId = 0, proposalsMode = false ): Promise<void> {
+    const newVotes = await digest.newProposal( chatId, proposalsMode );
     if ( newVotes.text.length ) {
         // Check if there was already a post about each new proposal.
-        logger.info( 'New votes moved to informal or formal' );
+        logger.info( 'New votes moved to informal or formal for ' + chatId );
         await postMessage(
             newVotes.text,
             POST_TYPES.new_simple,
@@ -130,7 +142,7 @@ async function postMessage(
         digestText = digestText.substring( 0, digestText.lastIndexOf( '\n' ) ) + '…';
     }
 
-    logger.debug( digestText );
+    logger.debug( 'Posting to: ' + chatId + ' ' + digestText );
 
     // Sent the message to Telegram to the specified Channel (Chat) and get the result.
     const result = await bot.telegram.sendMessage( chatId || Number( process.env.CHAT_ID ), digestText, {

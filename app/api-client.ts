@@ -1,17 +1,27 @@
 import axios from 'axios';
 import { logger } from './logger';
 
+// Helper class to access the API, cache and return the results.
 export class ApiClient {
+    // A flag indicating if user is logged into API.
     public isLoggedIn = false;
+
+    // Variables that handle some preferences from API.
     public totalMembers: number;
     public quorumRate: number;
     public quorumRateMilestone: number;
     public quorumRateSimple: number;
 
     private _apiUrlPrefix = process.env.API_URL_PREFIX;
+    // Token to send with each query after being signed in.
     private _apiAuthToken: string;
+    // Amount of time to wait for the request to finish.
     private _requestTimeout = Number( process.env.REQUEST_TIMEOUT );
+    // If signing in is in progress and not completed yet.
     private _signingIn = false;
+    // Operating with cache and timers to clear it.
+    private _memoryCache = {};
+    private _memoryCacheTimers = {};
 
     // Method to fetch data from the specified endpoint.
     // It uses a wrapper method to prevent some known issues with Axios on network problems.
@@ -27,6 +37,11 @@ export class ApiClient {
             await this.login();
             return await this.get( endpoint );
         }
+        // Check if the request is available in the in-memory cache.
+        if ( this._memoryCache[endpoint] ) {
+            return this._memoryCache[endpoint];
+        }
+
         const result = await this.requestWrapper( 'get', endpoint );
         if ( result.status && result.status >= 200 && result.status < 400 && result.data ) {
             // Re-login if token expired and retry the request.
@@ -37,6 +52,10 @@ export class ApiClient {
                 return await this.get( endpoint );
             }
         }
+
+        // Put to cache to prevent frequent requests for the same endpoint to the API.
+        this._cache( endpoint, result.data );
+
         return result.data;
     }
 
@@ -121,5 +140,16 @@ export class ApiClient {
         }
         clearTimeout( timeout );
         return result;
+    }
+
+    // Add the response value to the memory cache.
+    private _cache( endpoint: string, data: any ): void {
+        this._memoryCache[endpoint] = data;
+
+        // Set the cache to be cleared in 5 minutes.
+        clearTimeout( this._memoryCacheTimers[endpoint] );
+        this._memoryCacheTimers[endpoint] = setTimeout( () => {
+            delete this._memoryCache[endpoint];
+        }, 5 * 1000 * 60 );
     }
 }
