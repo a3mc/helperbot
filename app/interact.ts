@@ -438,11 +438,12 @@ export class Interact {
         if (
             !channelUser ||
             userId !== channelUser.user.id ||
-            channelUser.status !== 'member' ||
-            channelUser.status !== 'creator' ||
-            channelUser.status !== 'administrator'
+            (
+                channelUser.status !== 'member' &&
+                channelUser.status !== 'creator' &&
+                channelUser.status !== 'administrator'
+            )
         ) {
-            console.log( channelUser, userId );
             await ctx.replyWithMarkdown(
                 `Sorry, you don\'t have access to this bot. Please make sure you are a member ` +
                 `of the DxD VAs Helper Bot channel.` );
