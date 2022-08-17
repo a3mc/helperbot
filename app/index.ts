@@ -51,10 +51,17 @@ async function checkLoop(): Promise<void> {
         await newProposalPost( chatId );
     }
 
+    // Send notifications failed with no-quorum votes or expiring simple with no-quorum..
+    const chatIdsToPostExtra = await dbClient.subscribedChats( 'extra' );
+    for ( const chatId of chatIdsToPostExtra ) {
+        await failedListPost( chatId );
+    }
+
     // Send private Digest to the subscribers, according to their settings.
     const chatIdsToPostDigest = await dbClient.subscribedChats( 'digest' );
     for ( const chatId of chatIdsToPostDigest ) {
         await digestPost( chatId );
+        await noQuorumListPost( chatId );
     }
 }
 
@@ -78,8 +85,8 @@ async function simpleAdminListPost(): Promise<void> {
 }
 
 // Post about simple/admin votes that expire soon and have no quorum.
-async function noQuorumListPost(): Promise<void> {
-    const expiringSimple = await digest.expiringSimpleAdminNoQuorum();
+async function noQuorumListPost( chatId = 0 ): Promise<void> {
+    const expiringSimple = await digest.expiringSimpleAdminNoQuorum( chatId );
     if ( expiringSimple.text.length ) {
         logger.info( 'Expiring simple/admin votes with no quorum.' );
         // We also pass the ids, to be able to store them and prevent a duplicated post.
@@ -88,19 +95,22 @@ async function noQuorumListPost(): Promise<void> {
             POST_TYPES.expiring_simple,
             expiringSimple.informalIds,
             expiringSimple.formalIds,
+            chatId,
         );
     }
 }
 
 // Make a separate post about failed proposals with no quorum and pass their ids to save.
-async function failedListPost(): Promise<void> {
-    const newFailedVotes = await digest.newFailedNoQuorum();
+async function failedListPost( chatId = 0): Promise<void> {
+    const newFailedVotes = await digest.newFailedNoQuorum( chatId );
     if ( newFailedVotes.text.length ) {
         logger.info( 'New failed completed votes with no quorum.' );
         await postMessage(
             newFailedVotes.text,
             POST_TYPES.failed_no_quorum,
             newFailedVotes.votesIds,
+            [],
+            chatId,
         );
     }
 }

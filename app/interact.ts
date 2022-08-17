@@ -7,8 +7,8 @@ import moment from 'moment';
 import { DbClient } from './db-client';
 import { checkTimeFormat, checkTimezoneFormat } from './validators';
 
+// Class that provides interactive UI for the bot.
 export class Interact {
-
     cantPostChatIds: number[] = []; // Temporary paused users.
     verifiedUsers: number[] = []; // Remember if user is a member of main chat, so we don't check it each time.
     actionDelayTime = 400; // User can trigger immediate action not more often than this amount of time in ms.
@@ -53,7 +53,7 @@ export class Interact {
                 const formal = await this.digest.formalVotes();
                 let text = '__Active Formal__\n\n';
                 if ( !formal.length ) {
-                   text += this.digest.escapeText( 'There\'s nothing in Formal now' );
+                    text += this.digest.escapeText( 'There\'s nothing in Formal now' );
                 }
                 for ( const vote of formal ) {
                     text += this.digest.voteToText( vote );
@@ -421,14 +421,19 @@ export class Interact {
 
     // Check if user can use this bot.
     async verifyUser( ctx ): Promise<boolean> {
-        const userId = ( await ctx.getChat() ).id;
+        const userId = ( await ctx.getChat().catch( error => {
+            logger.warn( error.toString() )
+        } ) )?.id;
         // Check if this user is already verified.
-        if ( this.verifiedUsers.includes( userId ) ) {
+        if ( userId && this.verifiedUsers.includes( userId ) ) {
             return true;
         }
 
         // Check if user is a member of the common Bot channel.
-        const channelUser = await ctx.telegram.getChatMember( Number( process.env.CHAT_ID ), userId );
+        const channelUser = await ctx.telegram.getChatMember( Number( process.env.CHAT_ID ), userId )
+            .catch( error => {
+                logger.warn( error.toString() )
+            } );
         if ( !channelUser || userId !== channelUser.user.id ) {
             await ctx.replyWithMarkdown(
                 `Sorry, you don\'t have access to this bot. Please make sure you are a member ` +
