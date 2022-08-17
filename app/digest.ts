@@ -94,7 +94,7 @@ export class Digest {
 
     // Votes of these types (simple/admin-grant) are very important and easy to miss for the VAs due to their short
     // duration (24h). And if such posts ends soon and has no quorum, we make an extra post about that.
-    async expiringSimpleAdminNoQuorum(): Promise<any> {
+    async expiringSimpleAdminNoQuorum( chatId = 0 ): Promise<any> {
         // SIMPLE_NO_QUORUM_ALERT defines the time when the post should be made, before it expires.
         const informal = this.endingSoon( ( await this.informalVotes() ).filter(
             vote => vote.content_type === 'simple' || vote.content_type === 'admin-grant'
@@ -108,12 +108,12 @@ export class Digest {
 
         // Check if posts for the votes were already made.
         for ( const vote of informal ) {
-            if ( !await this.dbClient.checkPost( vote.id, VOTE_TYPES.informal, POST_TYPES.expiring_simple ) ) {
+            if ( !await this.dbClient.checkPost( vote.id, VOTE_TYPES.informal, POST_TYPES.expiring_simple, chatId ) ) {
                 newInformal.push( vote );
             }
         }
         for ( const vote of formal ) {
-            if ( !await this.dbClient.checkPost( vote.id, VOTE_TYPES.formal, POST_TYPES.expiring_simple ) ) {
+            if ( !await this.dbClient.checkPost( vote.id, VOTE_TYPES.formal, POST_TYPES.expiring_simple, chatId ) ) {
                 newFormal.push( vote );
             }
         }
@@ -131,13 +131,13 @@ export class Digest {
 
     // As the situation when proposal fails because of no quorum, and we want to avoid it at all cost - we make
     // a post if it happens. We check completed votes without a quorum.
-    async newFailedNoQuorum(): Promise<any> {
+    async newFailedNoQuorum( chatId = 0 ): Promise<any> {
         const noQuorum = ( await this.completedVotes() ).filter( vote => vote.result === 'no-quorum' );
         let newNoQuorum = [];
 
         // Check if posts for the votes were already made.
         for ( const vote of noQuorum ) {
-            if ( !await this.dbClient.checkFailedPost( vote.id ) ) {
+            if ( !await this.dbClient.checkFailedPost( vote.id, chatId ) ) {
                 newNoQuorum.push( vote );
             }
         }
