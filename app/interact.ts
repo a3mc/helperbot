@@ -7,8 +7,8 @@ import moment from 'moment';
 import { DbClient } from './db-client';
 import { checkTimeFormat, checkTimezoneFormat } from './validators';
 
+// Class that provides interactive UI for the bot.
 export class Interact {
-
     cantPostChatIds: number[] = []; // Temporary paused users.
     verifiedUsers: number[] = []; // Remember if user is a member of main chat, so we don't check it each time.
     actionDelayTime = 400; // User can trigger immediate action not more often than this amount of time in ms.
