@@ -55,13 +55,13 @@ async function checkLoop(): Promise<void> {
     const chatIdsToPostExtra = await dbClient.subscribedChats( 'extra' );
     for ( const chatId of chatIdsToPostExtra ) {
         await failedListPost( chatId );
+        await noQuorumListPost( chatId );
     }
 
     // Send private Digest to the subscribers, according to their settings.
     const chatIdsToPostDigest = await dbClient.subscribedChats( 'digest' );
     for ( const chatId of chatIdsToPostDigest ) {
         await digestPost( chatId );
-        await noQuorumListPost( chatId );
     }
 }
 
