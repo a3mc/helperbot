@@ -28,7 +28,7 @@ export class ApiClient {
     async get( endpoint: string ): Promise<any> {
         if ( this._signingIn ) {
             logger.warn( 'Trying to use Get method while signing in.' );
-            throw new Error( 'Trying to use Get method when signing in.' );
+            // throw new Error( 'Trying to use Get method when signing in.' );
         }
         // First sign in if needed
         if ( !this.isLoggedIn ) {
@@ -51,10 +51,10 @@ export class ApiClient {
                 await this.login();
                 return await this.get( endpoint );
             }
-        }
 
-        // Put to cache to prevent frequent requests for the same endpoint to the API.
-        this._cache( endpoint, result.data );
+            // Put to cache to prevent frequent requests for the same endpoint to the API.
+            this._cache( endpoint, result.data );
+        }
 
         return result.data;
     }
