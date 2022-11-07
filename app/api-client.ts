@@ -65,14 +65,30 @@ export class ApiClient {
         const result = await this.requestWrapper( 'post', 'login', {
             email: process.env.LOGIN,
             password: process.env.PASSWORD
+        } ).catch( ( error: any ) => {
+            logger.warn( error.toString().substring( 0, 255 ) );
+            logger.error( 'Error signing in.' );
+            this._signingIn = false;
+            this.isLoggedIn = false;
+            throw new Error( 'Error signing in.' );
         } );
+
         if ( result.data && result.data.success && result.data.user ) {
             logger.info( 'Signed in.' );
             this._apiAuthToken = result.data.user.accessTokenAPI;
             // Once we got the token, get some extra information from /me and /settings endpoint,
             // before making any other requests.
-            await this.me();
-            await this.settings();
+            try {
+                await this.me();
+                await this.settings();
+            }
+            catch ( error ) {
+                logger.warn( error.toString().substring( 0, 255 ) );
+                logger.error( 'Error getting Me or Settings.' );
+                this._signingIn = false;
+                this.isLoggedIn = false;
+                throw new Error( 'Error signing in.' );
+            }
             this.isLoggedIn = true;
             this._signingIn = false;
         } else {
