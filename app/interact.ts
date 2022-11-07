@@ -20,9 +20,13 @@ export class Interact {
         protected digest: Digest,
         protected dbClient: DbClient,
     ) {
-        this.initHandlers().then( () => {
-            logger.debug( 'Interactive bot part initialized.' )
-        } );
+        // Let all sign-in processes pass through.
+        setTimeout( () => {
+            this.initHandlers().then( () => {
+                logger.debug( 'Interactive bot part initialized.' )
+            } );
+        }, 10000 );
+
     }
 
     async initHandlers(): Promise<void> {
