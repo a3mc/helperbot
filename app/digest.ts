@@ -321,7 +321,7 @@ export class Digest {
             // It's not needed for new or completed votes, but good for active ones.
             // We also make some time conversion to display it in a more readable way.
             text += `\n\\(\_${ vote.result_count }/${ totalUsers } voted_\\. ` +
-                `\_Time left: ` + this.timeLeftToHM( vote.timeLeft ) + `_\\)`;
+                `\_Time left: ` + this.escapeText( this.timeLeftToHM( vote.timeLeft ) ) + `_\\)`;
 
         } else if ( isNew ) {
             // New votes always have the same time left, and nobody voted for them yet.
